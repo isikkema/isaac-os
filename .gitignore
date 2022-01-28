@@ -1,0 +1,4 @@
+hdd.dsk
+*.elf
+*.o
+*.d
