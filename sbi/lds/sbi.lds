@@ -9,7 +9,6 @@ PHDRS
 {
   text PT_LOAD;
   data PT_LOAD;
-  rodata PT_LOAD;
   bss PT_NULL;
 }
 
@@ -32,12 +31,6 @@ SECTIONS
     *(.sbss .sbss.*) *(.bss .bss.*)
     PROVIDE(_bss_end = .);
   } >ram AT>ram :bss
-  
-  .rodata : ALIGN(4096) {
-    PROVIDE(_rodata_start = .);
-    *(.rodata .rodata.*)
-    PROVIDE(_rodata_end = .);
-  } >ram AT>ram :rodata
 
   .data : ALIGN(4096) {
     . = ALIGN(4096);
