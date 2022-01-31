@@ -13,7 +13,7 @@ DEPS=$(patsubst src/%.c,deps/%.d,$(SOURCES))
 all: sbi.elf
 
 sbi.elf: $(OBJECTS) lds/sbi.lds
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJECTS)
 
 objs/%.o: src/%.c Makefile
 	$(CC) -MD -MF ./deps/$*.d $(CFLAGS) -o $@ -c $<

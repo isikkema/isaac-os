@@ -32,7 +32,7 @@ rung: cosc562.elf
 	qemu-system-riscv64 -bios ./sbi/sbi.elf -d guest_errors,unimp -cpu rv64 -machine virt -smp 8 -m 256M -kernel cosc562.elf $(QEMU_OPTIONS) $(QEMU_DEVICES)
 
 cosc562.elf: $(OBJECTS) lds/riscv.lds
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJECTS)
 
 objs/%.o: src/%.c Makefile
 	$(CC) -MD -MF ./deps/$*.d $(CFLAGS) -o $@ -c $<
