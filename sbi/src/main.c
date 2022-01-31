@@ -1,8 +1,36 @@
 #include "start.h"
+#include "trap.h"
+#include "clint.h"
+#include "symbols.h"
+#include "uart.h"
 
 #define JUMP_ADDR 0x80050000
 
-void main(/*int hartid*/) {
+int hart_0_is_good = 0;
+
+void puts(char* s) {
+    for (; *s; s++) {
+        uart_put(*s);
+    }
+}
+
+int main(int hartid) {
+    while (hartid != 0) {}
+    
+    uart_init();
+    puts("Hello, World!!!!\n\n");
+
+    char c;
+    while (1) {
+        c = uart_get();
+        if (c != 0xff) {
+            puts("[");
+            uart_put(c);
+            puts("]");
+        }
+    }
+
+    return 0;
     // long mstatus = (3 << 11) | (1 << 7);
     // unsigned long mtvec = (unsigned long)asm_trap_handler;
     // long medeleg = 0xb1ff;
