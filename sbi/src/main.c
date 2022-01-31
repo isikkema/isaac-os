@@ -2,7 +2,7 @@
 
 #define JUMP_ADDR 0x80050000
 
-void main(int hartid) {
+void main(/*int hartid*/) {
     // long mstatus = (3 << 11) | (1 << 7);
     // unsigned long mtvec = (unsigned long)asm_trap_handler;
     // long medeleg = 0xb1ff;
