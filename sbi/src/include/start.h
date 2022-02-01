@@ -1,1 +1,1 @@
-void hart_hang();
+void park();
