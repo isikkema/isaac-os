@@ -25,6 +25,9 @@
 #define PLIC_ENABLE(hart, mode) \
     (PLIC_BASE + PLIC_ENABLE_BASE + PLIC_ENABLE_STRIDE * (2 * hart + mode))
 
+#define PLIC_UART   (10)
+
+
 void plic_set_priority(int interrupt_id, char priority);
 
 void plic_set_threshold(int hart, char priority);
@@ -36,3 +39,5 @@ void plic_disable(int hart, int interrupt_id);
 uint32_t plic_claim(int hart);
 
 void plic_complete(int hart, int id);
+
+void plic_init();

@@ -1,5 +1,6 @@
 #include <plic.h>
 
+
 void plic_set_priority(int interrupt_id, char priority) {
     uint32_t *base = (uint32_t *)PLIC_PRIORITY(interrupt_id);
     *base = priority & 0x7;
@@ -28,4 +29,12 @@ uint32_t plic_claim(int hart) {
 void plic_complete(int hart, int id) {
     uint32_t *base = (uint32_t *)PLIC_CLAIM(hart, PLIC_MODE_MACHINE);
     *base = id;
+}
+
+void plic_init() {
+    plic_enable(0, PLIC_UART);          // Enable UART on hart 0
+
+    plic_set_priority(PLIC_UART, 7);    // Set UART to priority 7
+
+    plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
 }

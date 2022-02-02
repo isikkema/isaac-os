@@ -20,7 +20,7 @@ _start:
     li      t1, (1 << 11)               # Enable interrupts
     csrw    mie, t1
 
-    la      t1, sbi_trap_vector
+    la      t1, sbi_trap_vector         # Set mtvec so sbi_trap_vector handles interrupts
     csrw    mtvec, t1
 
     mret                                # "call" main

@@ -10,6 +10,7 @@ typedef struct TrapFrame {
 
 TrapFrame c_sbi_trap_frame;
 
+
 void c_trap(void) {
     long mcause;
 
