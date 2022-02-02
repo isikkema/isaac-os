@@ -1,10 +1,15 @@
-#include "start.h"
-#include "uart.h"
+#include <start.h>
+#include <uart.h>
+#include <printf.h>
+#include <plic.h>
 
-void puts(char* s) {
-    for (; *s != '\0'; s++) {
-        uart_put(*s);
-    }
+
+void plic_init() {
+    plic_enable(0, 10); // Enable UART on hart 0
+
+    plic_set_priority(10, 7);   // Set UART to pri 7
+
+    plic_set_threshold(0, 0);   // Set hart 0 to threshold 0
 }
 
 int main(int hartid) {
@@ -13,17 +18,7 @@ int main(int hartid) {
     }
     
     uart_init();
-    puts("Hello, World!\n\n");
-
-    char c;
-    while (1) {
-        c = uart_get();
-        if (c != 0xff) {
-            puts("[");
-            uart_put(c);
-            puts("]");
-        }
-    }
+    plic_init();
 
     return 0;
 }

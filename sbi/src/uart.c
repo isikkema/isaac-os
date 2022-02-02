@@ -2,6 +2,7 @@
 
 #define UART_BASE ((volatile char*) 0x10000000)
 #define UART_RW     (0)
+#define UART_IER    (1)
 #define UART_FCR    (2)
 #define UART_LCR    (3)
 #define UART_LSR    (5)
@@ -13,6 +14,7 @@ void uart_init(void) {
 
     // IER
     // turn on data ready interrupts IER byte 1 bit 0
+    UART_BASE[UART_IER] = 0b1;
 
     // Divisor
 }
