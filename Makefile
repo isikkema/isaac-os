@@ -25,7 +25,7 @@ all: cosc562.elf
 
 run: cosc562.elf
 	$(MAKE) -C sbi
-	qemu-system-riscv64 -nographic -bios ./sbi/sbi.elf -d guest_errors,unimp -cpu rv64 -machine virt -smp 8 -m 256M -kernel cosc562.elf $(QEMU_OPTIONS) $(QEMU_DEVICES)
+	qemu-system-riscv64 -nographic -bios ./sbi/sbi.elf -d guest_errors,unimp -cpu rv64 -machine virt -smp 1 -m 256M -kernel cosc562.elf $(QEMU_OPTIONS) $(QEMU_DEVICES)
 
 rung: cosc562.elf
 	$(MAKE) -C sbi

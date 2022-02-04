@@ -32,3 +32,8 @@ void uart_put(char val) {
 
     UART_BASE[0] = val;                             // Write data when buffer is ready
 }
+
+void uart_handle_irq(void) {
+    char c = uart_get();
+    printf("UART got %c (%d)\n", c, c);
+}

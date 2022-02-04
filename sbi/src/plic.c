@@ -38,3 +38,13 @@ void plic_init() {
 
     plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
 }
+
+
+void plic_handle_irq(int hart) {
+    printf("Hart %d made it to plic.\n", hart);
+    uint32_t irq = plic_claim(hart);
+    if (irq == 10)
+        uart_handle_irq();
+    plic_complete(hart, irq);
+    while (1) {};
+}
