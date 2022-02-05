@@ -41,3 +41,5 @@ uint32_t plic_claim(int hart);
 void plic_complete(int hart, int id);
 
 void plic_init();
+
+void plic_handle_irq(int hart);

@@ -1,4 +1,5 @@
 #include <plic.h>
+#include <uart.h>
 
 
 void plic_set_priority(int interrupt_id, char priority) {
