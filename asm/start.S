@@ -1,32 +1,26 @@
-# .section .text.init
-# .global _start
-# _start:
-#     # csrr    a0, mhartid                 # Read mhartid
+.section .text.init
+.global _start
+_start:
+    la      sp, _stack_end
+    la      gp, __global_pointer$
 
-#     la      sp, _stack_end
-#     la      gp, __global_pointer$
+    la      ra, park                    # Return to park() once we return from main
 
-#     li      t0, 4096                    # Set sp to stack_end + 4096 * hartid
-#     mul     t0, a0, t0
-#     sub     sp, sp, t0
+    la      t1, main                    # Put addr of main into
+    csrw    sepc, t1                    # Return PC
 
-#     la      ra, park                    # Return to park() once we return form main
+    li      t1, (1 << 13) | (1 << 8) | (1 << 5) 
+    csrw    sstatus, t1
 
-#     la      t1, main                    # Put addr of main into
-#     csrw    sepc, t1                    # Return PC
+    li      t1, (1 << 9)                # Enable interrupts
+    csrw    sip, t1
 
-#     li      t1, (1 << 13) | (1 << 8) | (1 << 5)    # I had no clue this was allowed
-#     csrw    sstatus, t1
+    la      t1, os_trap_vector             # Set stvec so trap_vector handles interrupts
+    csrw    stvec, t1
 
-#     li      t1, (1 << 9)               # Enable interrupts
-#     csrw    sip, t1
+    sret                                # "call" main
 
-#     la      t1, sbi_trap_vector         # Set mtvec so sbi_trap_vector handles interrupts
-#     csrw    stvec, t1
-
-#     sret                                # "call" main
-
-# .global park
-# park:
-#     wfi         # Wait-For-Interrupt (Wii)
-#     j    park
+.global park
+park:
+    wfi         # Wait-For-Interrupt (Wii)
+    j    park

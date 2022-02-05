@@ -44,10 +44,8 @@ void plic_handle_irq(int hart) {
 
     irq = plic_claim(hart);
 
-    // printf("Hart %d made it to plic with irq: %d\n", hart, irq);
-
-    // while (1) {};
     if (irq == 10)
         uart_handle_irq();
+
     plic_complete(hart, irq);
 }

@@ -35,5 +35,5 @@ void uart_put(char val) {
 
 void uart_handle_irq(void) {
     char c = uart_get();
-    printf("UART got %c (%d)\n", c, c);
+    uart_put(c);
 }

@@ -1,0 +1,3 @@
+.global os_trap_vector
+os_trap_vector:
+    ret
