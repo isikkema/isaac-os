@@ -23,6 +23,8 @@ int main(int hartid) {
 
     CSR_WRITE("mscratch", &SBI_GPREGS[0][hartid]);
 
+    while (1) {};
+
     CSR_WRITE("mepc", 0x80050000UL);
     CSR_WRITE("mideleg", (1 << 1) | (1 << 5) | (1 << 7));
     CSR_WRITE("medeleg", 0xB1FF);

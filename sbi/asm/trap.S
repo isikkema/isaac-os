@@ -37,3 +37,5 @@ sbi_trap_vector:
         loadgp %i
         .set i, i + 1
     .endr
+
+    mret

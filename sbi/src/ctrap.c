@@ -14,12 +14,8 @@ void c_trap(void) {
     CSR_READ(mhartid, "mhartid");
     CSR_READ(mepc, "mepc");
 
-    printf("mcause: 0x%08lx, mhartid: %d\n", mcause, mhartid);
-
-    is_async = mcause >> 63;    // MSB is 1 if async
-    mcause ^= (long)1 << 63;    // Set MSB to 0. C bugs are so stupid.
-
-    printf("mcause: 0x%08lx, async: %d\n", mcause, is_async);
+    is_async = mcause >> 63;        // MSB is 1 if async
+    mcause &= 0x7fffffffffffffff;   // Set MSB to 0. I'm stupid
 
     if (is_async) {
         switch (mcause) {
@@ -40,4 +36,6 @@ void c_trap(void) {
         //         break;
         // }
     }
+
+    // while (1) {};
 }

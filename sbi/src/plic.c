@@ -40,11 +40,14 @@ void plic_init() {
 }
 
 void plic_handle_irq(int hart) {
-    printf("Hart %d made it to plic.\n", hart);
-    while (1) {};
-    uint32_t irq = plic_claim(hart);
+    uint32_t irq;
+
+    irq = plic_claim(hart);
+
+    // printf("Hart %d made it to plic with irq: %d\n", hart, irq);
+
+    // while (1) {};
     if (irq == 10)
         uart_handle_irq();
     plic_complete(hart, irq);
-    while (1) {};
 }
