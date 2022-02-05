@@ -1,5 +1,5 @@
 int main(int hart) {
-    printf("")
+    // printf("");
     while (1) {};
     return 0;
 }

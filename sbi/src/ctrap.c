@@ -1,20 +1,10 @@
 #include <csr.h>
 #include <syscall.h>
 
-typedef struct TrapFrame {
-    long gp_regs[32];
-    long fp_regs[32];
-    unsigned long pc;
-} TrapFrame;
-
-
-TrapFrame c_sbi_trap_frame;
-
-
 void c_trap(void) {
     long mcause;
     long mhartid;
-    long mscratch;
+    long* mscratch;
     long mepc;
 
     CSR_READ(mcause, "mcause");

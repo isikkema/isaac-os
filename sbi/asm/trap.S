@@ -17,8 +17,14 @@ sbi_trap_vector:
 
     .set i, 1
     .rept 30
-        savegp \i
-        .set i, \i + 1
+        savegp %i
+        .set i, i + 1
+    .endr
+
+    .set i, 1
+    .rept 31
+        loadgp %i
+        .set i, i + 1
     .endr
 
     mv      t5, t6
@@ -27,9 +33,3 @@ sbi_trap_vector:
 
     la      sp, _stack_end
     call c_trap
-
-    .set i, 1
-    .rept 31
-        loadgp \i
-        .set i, \i + 1
-    .endr
