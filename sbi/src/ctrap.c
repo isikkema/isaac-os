@@ -1,5 +1,6 @@
 #include <csr.h>
 #include <syscall.h>
+#include <printf.h>
 
 void c_trap(void) {
     long mcause;
@@ -9,11 +10,11 @@ void c_trap(void) {
 
     CSR_READ(mcause, "mcause");
     CSR_READ(mhartid, "mhartid");
-    CSR_READ(mhartid, "mepc");
+    CSR_READ(mepc, "mepc");
 
     printf("mcause: %08lx, mhartid: %d\n", mcause, mhartid);
 
-    // while (1) {};
+    while (1) {};
     
     if (mcause < 0) {
         // async
