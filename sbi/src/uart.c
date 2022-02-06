@@ -92,15 +92,3 @@ void uart_handle_irq(void) {
         uart_buffer_write(c);
     }
 }
-
-void print_buffer(void) {
-    int i;
-
-    uart_put('[');
-    for (i = 0; i < UART_BUFFER_SIZE; i++) {
-        uart_put(uart_buffer[i]);
-    }
-
-    uart_put(']');
-    printf("\n");
-}
