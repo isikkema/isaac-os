@@ -7,7 +7,7 @@
 #define UART_LCR    (3)
 #define UART_LSR    (5)
 
-#define UART_BUFFER_SIZE (8)
+#define UART_BUFFER_SIZE (32)
 
 
 char uart_buffer[UART_BUFFER_SIZE];
