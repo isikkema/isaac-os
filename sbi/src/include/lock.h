@@ -6,6 +6,10 @@ typedef struct Semaphore {
     int value;
 } Semaphore;
 
+typedef struct Barrier {
+    int value;
+} Barrier;
+
 
 int mutex_trylock(Mutex* mutex);
 void mutex_spinlock(Mutex* mutex);
@@ -14,3 +18,5 @@ void mutex_unlock(Mutex* mutex);
 int semaphore_trydown(Semaphore* semaphore);
 void semaphore_spindown(Semaphore* semaphore);
 void semaphore_up(Semaphore* semaphore);
+
+void barrier_spinwait(Barrier* barrier);

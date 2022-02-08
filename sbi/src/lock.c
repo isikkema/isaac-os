@@ -41,3 +41,12 @@ void semaphore_spindown(Semaphore* semaphore) {
 void semaphore_up(Semaphore* semaphore) {
     asm volatile("amoadd.w zero, %0, (%1)" :: "r"(1), "r"(&semaphore->value));
 }
+
+
+void barrier_spinwait(Barrier* barrier) {
+    asm volatile("amoadd.w zero, %0, (%1)" :: "r"(-1), "r"(&barrier->value));
+
+    while (barrier->value > 0) {
+        // spin
+    }
+}
