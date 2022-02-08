@@ -3,6 +3,12 @@
 #include <printf.h>
 #include <plic.h>
 #include <csr.h>
+#include <lock.h>
+
+
+Mutex mutex;
+
+long int SBI_GPREGS[32][8];
 
 
 static void pmp_init() {
@@ -10,16 +16,29 @@ static void pmp_init() {
     CSR_WRITE("pmpcfg0", (0b01 << 3) | (1 << 2) | (1 << 1) | (1 << 0));
 }
 
-long int SBI_GPREGS[32][8];
 
 int main(int hartid) {
-    while (hartid != 0) {
-        // sleep
-    }
+    // while (hartid != 0) {
+    //     // sleep
+    // }
     
-    uart_init();
-    plic_init();
-    pmp_init();
+    if (hartid == 0) {
+        uart_init();
+        plic_init();
+        pmp_init();
+    }
+
+    mutex_spinlock(&mutex);
+
+    printf("hart %d got lock!\n", hartid);
+    
+    for (int i = 0; i < 100000000; i++) { // sleep lol
+        1000.0 / 3.0;
+    }
+
+    mutex_unlock(&mutex);
+
+    while (1) {};
 
     CSR_WRITE("mscratch", &SBI_GPREGS[0][hartid]);
 

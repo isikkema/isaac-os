@@ -1,4 +1,4 @@
-#include <mutex.h>
+#include <lock.h>
 
 
 int mutex_trylock(Mutex* mutex) {
