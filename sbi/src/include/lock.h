@@ -12,11 +12,11 @@ typedef struct Barrier {
 
 
 int mutex_trylock(Mutex* mutex);
-void mutex_spinlock(Mutex* mutex);
+void mutex_sbi_lock(Mutex* mutex);
 void mutex_unlock(Mutex* mutex);
 
 int semaphore_trydown(Semaphore* semaphore);
-void semaphore_spindown(Semaphore* semaphore);
+void semaphore_sbi_down(Semaphore* semaphore);
 void semaphore_up(Semaphore* semaphore);
 
-void barrier_spinwait(Barrier* barrier);
+void barrier_sbi_wait(Barrier* barrier);

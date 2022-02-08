@@ -47,7 +47,7 @@ void uart_put(char val) {
 char uart_get_buffered(void) {
     char rv;
 
-    mutex_spinlock(&mutex);
+    mutex_sbi_lock(&mutex);
 
     if (uart_buf_len > 0) {
         rv = uart_buffer[uart_buf_idx];
@@ -68,7 +68,7 @@ char uart_get_buffered(void) {
 void uart_buffer_write(char c) {
     int new_idx;
 
-    mutex_spinlock(&mutex);
+    mutex_sbi_lock(&mutex);
 
     if (uart_buf_len < UART_BUFFER_SIZE) {
         uart_buf_len++;
