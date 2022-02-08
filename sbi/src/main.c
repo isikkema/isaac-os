@@ -6,7 +6,7 @@
 #include <lock.h>
 
 
-Semaphore sem = {4};
+Barrier barrier = {8};
 Mutex mut;
 
 long int SBI_GPREGS[32][8];
@@ -29,17 +29,19 @@ int main(int hartid) {
         pmp_init();
     }
 
-    semaphore_spindown(&sem);
-    
-    mutex_spinlock(&mut);   // So prints don't overlap
-    printf("Hart %d got resource!\n", hartid);
-    mutex_unlock(&mut);
-
-    for (int i = 0; i < 100000000; i++) {
+    for (int i = 0; i < 100000000*hartid; i++) {
         1000.0 / 3.0;
     }
 
-    semaphore_up(&sem);
+    mutex_spinlock(&mut);
+    printf("Hart %d waiting...\n", hartid);
+    mutex_unlock(&mut);
+
+    barrier_spinwait(&barrier);
+
+    mutex_spinlock(&mut);
+    printf("Hart %d got past barrier!\n", hartid);
+    mutex_unlock(&mut);
 
     while (1) {};
 
