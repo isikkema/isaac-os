@@ -3,7 +3,11 @@
 #include <printf.h>
 #include <plic.h>
 #include <csr.h>
+#include <lock.h>
 
+
+Semaphore sem = {4};
+Mutex mut;
 
 long int SBI_GPREGS[32][8];
 
@@ -15,15 +19,29 @@ static void pmp_init() {
 
 
 int main(int hartid) {
-    while (hartid != 0) {
-        // sleep
-    }
+    // while (hartid != 0) {
+    //     // sleep
+    // }
     
     if (hartid == 0) {
         uart_init();
         plic_init();
         pmp_init();
     }
+
+    semaphore_spindown(&sem);
+    
+    mutex_spinlock(&mut);   // So prints don't overlap
+    printf("Hart %d got resource!\n", hartid);
+    mutex_unlock(&mut);
+
+    for (int i = 0; i < 100000000; i++) {
+        1000.0 / 3.0;
+    }
+
+    semaphore_up(&sem);
+
+    while (1) {};
 
     CSR_WRITE("mscratch", &SBI_GPREGS[0][hartid]);
 
