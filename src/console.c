@@ -47,6 +47,7 @@ void output_char(char c) {
             break;
         
         case '\b':
+        case 127:
             printf("\b \b");
             break;
         
@@ -68,6 +69,7 @@ int handle_char(char c, ConsoleBuffer* cb) {
             break;
         
         case '\b':
+        case 127:
             pop_buffer(cb);
             break;
         
@@ -85,6 +87,10 @@ int handle_command(ConsoleBuffer* cb) {
     } else {
         printf("Unknown command: %s\n", cb->buffer);
     }
+
+    clear_buffer(cb);
+
+    printf("OS> ");
 
     return 0;
 }
