@@ -92,6 +92,8 @@ int handle_command(ConsoleBuffer* cb) {
     if (strcmp("exit", cb->buffer) == 0) {
         printf("Bye :)\n");
         return 1;
+    } else if (strcmp("status", cb->buffer) == 0) {
+        print_hart_status();
     } else {
         printf("Unknown command: %s\n", cb->buffer);
     }
@@ -110,4 +112,9 @@ void run_console() {
             break;
         }
     }
+}
+
+
+void print_hart_status() {
+    printf("I mean... Hart 0 is running. That's for sure.\n");
 }

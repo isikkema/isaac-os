@@ -17,3 +17,5 @@ void output_char(char c);
 int handle_char(char c, ConsoleBuffer* cb);
 int handle_command(ConsoleBuffer* cb);
 void run_console();
+
+void print_hart_status();
