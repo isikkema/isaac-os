@@ -1,8 +1,12 @@
 #include <printf.h>
+#include <console.h>
+#include <string.h>
 
 
 int main(int hart) {
-    printf("printing in OS main on hart %d\n", hart);
+    run_console();
+
     while (1) {};
+    
     return 0;
 }
