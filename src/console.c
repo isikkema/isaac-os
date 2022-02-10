@@ -11,6 +11,8 @@ char blocking_getchar() {
         if (c != 0xFF) {
             break;
         }
+
+        asm volatile ("wfi");
     }
 
     return c;
