@@ -14,7 +14,7 @@ void syscall_handle(int hart) {
             break;
     
         case 11:
-            mscratch[10] = uart_get();
+            mscratch[10] = uart_get_buffered();
             break;
             
         default:
