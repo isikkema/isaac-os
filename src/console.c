@@ -57,16 +57,11 @@ void output_char(char c) {
 }
 
 int handle_char(char c, ConsoleBuffer* cb) {
-    int rv;
-
     output_char(c);
     
-    rv = 0;
     switch (c) {
         case '\r':
-            rv = handle_command(cb);
-            clear_buffer(cb);
-            break;
+            return 1;
         
         case '\b':
         case 127:
@@ -77,7 +72,20 @@ int handle_char(char c, ConsoleBuffer* cb) {
             push_buffer(cb, c);
     }
 
-    return rv;
+    return 0;
+}
+
+void get_command(ConsoleBuffer* cb) {
+    char c;
+
+    clear_buffer(cb);
+
+    while (1) {
+        c = blocking_getchar();
+        if (handle_char(c, cb)) {
+            break;
+        }
+    }
 }
 
 int handle_command(ConsoleBuffer* cb) {
@@ -88,22 +96,17 @@ int handle_command(ConsoleBuffer* cb) {
         printf("Unknown command: %s\n", cb->buffer);
     }
 
-    clear_buffer(cb);
-
-    printf("OS> ");
-
     return 0;
 }
 
 void run_console() {
     ConsoleBuffer cb;
-    char c;
-
-    clear_buffer(&cb);
-
+    
     while (1) {
-        c = blocking_getchar();
-        if (handle_char(c, &cb)) {
+        printf("OS> ");
+        
+        get_command(&cb);
+        if (handle_command(&cb)) {
             break;
         }
     }
