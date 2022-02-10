@@ -21,6 +21,9 @@ void c_trap(void) {
 
     if (is_async) {
         switch (mcause) {
+            case 3: // MSIP
+                
+                break;
             case 11:
                 plic_handle_irq(mhartid);
                 break;
