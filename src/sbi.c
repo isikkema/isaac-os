@@ -21,3 +21,7 @@ HartStatus sbi_get_hart_status(int hart) {
     
     return status;
 }
+
+void sbi_poweroff(void) {
+    asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
+}

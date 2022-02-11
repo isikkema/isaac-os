@@ -4,3 +4,5 @@
 #define SBI_GETCHAR (11)
 
 #define SBI_GET_HART_STATUS (20)
+
+#define SBI_POWEROFF (30)

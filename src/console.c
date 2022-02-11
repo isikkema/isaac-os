@@ -97,6 +97,8 @@ int handle_command(ConsoleBuffer* cb) {
         return 1;
     } else if (strcmp("status", cb->buffer) == 0) {
         print_hart_status();
+    } else if (strcmp("poweroff", cb->buffer) == 0) {
+        poweroff();
     } else {
         printf("Unknown command: %s\n", cb->buffer);
     }
@@ -143,4 +145,8 @@ void print_hart_status() {
     for (i = 0; i < NUM_HARTS; i++) {
         printf("Hart %d is %s.\n", i, hartstatus_to_string(sbi_get_hart_status(i)));
     }
+}
+
+void poweroff() {
+    sbi_poweroff();
 }

@@ -23,7 +23,11 @@ void syscall_handle(int hart) {
             int hart = mscratch[10];
             mscratch[10] = get_hart_status(hart);
             break;
-            
+        
+        case SBI_POWEROFF:
+            *((unsigned short*) 0x100000) = 0x5555;
+            break;
+
         default:
             break;
     }
