@@ -1,6 +1,8 @@
 #include <syscall.h>
 #include <csr.h>
 #include <uart.h>
+#include <sbi.h>
+#include <hart.h>
 
 
 void syscall_handle(int hart) {
@@ -8,13 +10,18 @@ void syscall_handle(int hart) {
     
     CSR_READ(mscratch, "mscratch");
     switch (mscratch[17]) {
-        case 10: ;
+        case SBI_PUTCHAR: ;
             char c = mscratch[10] & 0xff;   // mscratch[10] is a0
             uart_put(c);
             break;
     
-        case 11:
+        case SBI_GETCHAR:
             mscratch[10] = uart_get_buffered();
+            break;
+        
+        case SBI_GET_HART_STATUS: ;
+            int hart = mscratch[10];
+            mscratch[10] = get_hart_status(hart);
             break;
             
         default:

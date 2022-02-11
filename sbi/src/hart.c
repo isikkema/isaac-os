@@ -5,5 +5,9 @@ HartData sbi_hart_data[NUM_HARTS];
 
 
 HartStatus get_hart_status(unsigned int hart) {
-    return HS_INVALID;
+    if (hart == 0) {
+        return HS_STARTED;
+    } else {
+        return HS_STOPPED;
+    }
 }

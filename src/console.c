@@ -1,6 +1,7 @@
 #include <console.h>
 #include <sbi.h>
 #include <printf.h>
+#include <string.h>
 
 
 char blocking_getchar() {
@@ -117,6 +118,29 @@ void run_console() {
 }
 
 
+char* hartstatus_to_string(HartStatus status) {
+    switch (status) {
+        case HS_STOPPED:
+            return "STOPPED";
+        
+        case HS_STOPPING:
+            return "STOPPING";
+        
+        case HS_STARTING:
+            return "STARTING";
+        
+        case HS_STARTED:
+            return "STARTED";
+        
+        default:
+            return "INVALID";
+    }
+}
+
 void print_hart_status() {
-    printf("I mean... Hart 0 is running. That's for sure.\n");
+    int i;
+    
+    for (i = 0; i < NUM_HARTS; i++) {
+        printf("Hart %d is %s.\n", i, hartstatus_to_string(sbi_get_hart_status(i)));
+    }
 }
