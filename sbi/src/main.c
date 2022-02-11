@@ -4,9 +4,10 @@
 #include <plic.h>
 #include <csr.h>
 #include <lock.h>
+#include <hart.h>
 
 
-long int SBI_GPREGS[32][8];
+long int SBI_GPREGS[32][NUM_HARTS];
 
 
 static void pmp_init() {
@@ -26,7 +27,7 @@ int main(int hartid) {
         pmp_init();
     }
 
-    CSR_WRITE("mscratch", &SBI_GPREGS[0][hartid]);
+    CSR_WRITE("mscratch", SBI_GPREGS[hartid]);
 
     CSR_WRITE("mepc", 0x80050000UL);
     CSR_WRITE("mideleg", (1 << 1) | (1 << 5) | (1 << 7));
