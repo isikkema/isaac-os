@@ -15,8 +15,12 @@ _start:
     li      t1, (1 << 9)                # Enable interrupts
     csrw    sip, t1
 
-    la      t1, os_trap_vector             # Set stvec so trap_vector handles interrupts
+    la      t1, os_trap_vector          # Set stvec so trap_vector handles interrupts
     csrw    stvec, t1
+
+    la      ra, park
+
+    csrr    a0, sscratch
 
     sret                                # "call" main
 
