@@ -18,7 +18,7 @@ static void pmp_init() {
 
 int main(int hartid) {
     while (hartid != 0) {
-        // sleep
+        asm volatile ("wfi");
     }
     
     if (hartid == 0) {
