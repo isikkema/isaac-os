@@ -20,3 +20,4 @@ void semaphore_sbi_down(Semaphore* semaphore);
 void semaphore_up(Semaphore* semaphore);
 
 void barrier_sbi_wait(Barrier* barrier);
+void barrier_release(Barrier* barrier);

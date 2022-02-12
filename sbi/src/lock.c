@@ -50,3 +50,7 @@ void barrier_sbi_wait(Barrier* barrier) {
         // spin
     }
 }
+
+void barrier_release(Barrier* barrier) {
+    asm volatile("amoswap.w.rl zero, zero, (%0)" :: "r"(&barrier->value));
+}

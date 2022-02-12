@@ -11,7 +11,7 @@
 
 long int SBI_GPREGS[32][NUM_HARTS];
 
-Barrier barrier = {NUM_HARTS};
+Barrier barrier = {INT32_MAX};
 
 
 static void pmp_init() {
@@ -36,7 +36,7 @@ int main(int hartid) {
         clear_bss();
         uart_init();
 
-        barrier_sbi_wait(&barrier);
+        barrier_release(&barrier);
 
         plic_init();
         pmp_init();
