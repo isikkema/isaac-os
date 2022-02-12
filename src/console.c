@@ -141,9 +141,15 @@ char* hartstatus_to_string(HartStatus status) {
 
 void print_hart_status() {
     int i;
+    HartStatus status;
     
     for (i = 0; i < NUM_HARTS; i++) {
-        printf("Hart %d is %s.\n", i, hartstatus_to_string(sbi_get_hart_status(i)));
+        status = sbi_get_hart_status(i);
+        if (status == HS_INVALID) {
+            break;
+        }
+
+        printf("Hart %d is %s.\n", i, hartstatus_to_string(status));
     }
 }
 
