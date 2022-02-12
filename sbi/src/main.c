@@ -1,4 +1,5 @@
 #include <start.h>
+#include <trap.h>
 #include <uart.h>
 #include <printf.h>
 #include <plic.h>
@@ -30,6 +31,7 @@ void clear_bss() {
     }
 }
 
+ATTR_NAKED_NORET
 int main(int hartid) {
     if (hartid == 0) {
         clear_bss();
@@ -47,15 +49,16 @@ int main(int hartid) {
         CSR_WRITE("mscratch", SBI_GPREGS[hartid]);
     	CSR_WRITE("sscratch", hartid);
 
-        CSR_WRITE("mepc", 0x80050000UL);
+        CSR_WRITE("mepc", OS_LOAD_ADDR);
+		CSR_WRITE("mtvec", sbi_trap_vector);
 
-    	CSR_WRITE("mie", (1 << 11) | (1 << 7) | (1 << 3));
+    	CSR_WRITE("mie", MIE_MEIE | MIE_MTIE | MIE_MSIE);
 
-        CSR_WRITE("mideleg", (1 << 1) | (1 << 5) | (1 << 7));
-        CSR_WRITE("medeleg", 0xB1FF);
-        CSR_WRITE("mstatus", (1 << 13) | (1 << 11));
+        CSR_WRITE("mideleg", SIP_SEIP | SIP_STIP | SIP_SSIP);
+        CSR_WRITE("medeleg", MEDELEG_ALL);
+        CSR_WRITE("mstatus", MSTATUS_FS_INITIAL | MSTATUS_MPP_SUPERVISOR | MSTATUS_MPIE);
 
-        asm volatile ("mret");
+        MRET();
     }
 
     barrier_sbi_wait(&barrier);
@@ -70,12 +73,13 @@ int main(int hartid) {
     CSR_WRITE("sscratch", hartid);
 
     CSR_WRITE("mepc", park);
+    CSR_WRITE("mtvec", sbi_trap_vector);
 
-    CSR_WRITE("mie", 1 << 3);
+    CSR_WRITE("mie", MIE_MSIE);
 
     CSR_WRITE("mideleg", 0);
     CSR_WRITE("medeleg", 0);
-    CSR_WRITE("mstatus", (1 << 13) | (1 << 11));
+    CSR_WRITE("mstatus", MSTATUS_FS_INITIAL | MSTATUS_MPP_MACHINE | MSTATUS_MPIE);
 
-    asm volatile ("mret");
+    MRET();
 }
