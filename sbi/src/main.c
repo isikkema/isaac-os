@@ -5,7 +5,6 @@
 #include <csr.h>
 #include <lock.h>
 #include <hart.h>
-#include <hart.h>
 #include <symbols.h>
 
 

@@ -1,11 +1,11 @@
 #include <syscall.h>
 #include <csr.h>
 #include <uart.h>
-#include <sbi.h>
+#include <svccodes.h>
 #include <hart.h>
 
 
-void syscall_handle(int hart) {
+void svccall_handle(int hart) {
     long *mscratch;
     
     CSR_READ(mscratch, "mscratch");

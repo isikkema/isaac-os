@@ -1,5 +1,5 @@
 #include <csr.h>
-#include <syscall.h>
+#include <svccall.h>
 #include <printf.h>
 #include <plic.h>
 
@@ -34,7 +34,7 @@ void c_trap(void) {
     } else {
         switch (mcause) {
             case 9:
-                syscall_handle(mhartid);
+                svccall_handle(mhartid);
                 CSR_WRITE("mepc", mepc + 4);    // Return to next instruction
                 break;
             
