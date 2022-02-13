@@ -1,3 +1,7 @@
+// ctrap.c
+// Delegate handling of interrupts based on mcause
+
+
 #include <csr.h>
 #include <svccall.h>
 #include <printf.h>
@@ -16,14 +20,15 @@ void c_trap(void) {
     CSR_READ(mscratch, "mscratch");
     CSR_READ(mepc, "mepc");
 
-    is_async = mcause >> 63;        // MSB is 1 if async
-    mcause &= 0x7fffffffffffffff;   // Set MSB to 0. I'm stupid
+    is_async = MCAUSE_IS_ASYNC(mcause);
+    mcause = MCAUSE_NUM(mcause);
 
     if (is_async) {
         switch (mcause) {
             case 3: // MSIP
-                
+                printf("MSIP UNIMPLEMENTED!\n");
                 break;
+
             case 11:
                 plic_handle_irq(mhartid);
                 break;

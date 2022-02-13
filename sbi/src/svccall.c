@@ -1,3 +1,8 @@
+// svccall.c
+// Handles calls from the OS the the SBI.
+// Delegates handling based on arg7
+
+
 #include <syscall.h>
 #include <csr.h>
 #include <uart.h>
@@ -9,19 +14,19 @@ void svccall_handle(int hart) {
     long *mscratch;
     
     CSR_READ(mscratch, "mscratch");
-    switch (mscratch[17]) {
+    switch (mscratch[XREG_A7]) {
         case SBI_PUTCHAR: ;
-            char c = mscratch[10] & 0xff;   // mscratch[10] is a0
+            char c = mscratch[XREG_A0] & 0xff;          // Get arg0
             uart_put(c);
             break;
     
         case SBI_GETCHAR:
-            mscratch[10] = uart_get_buffered();
+            mscratch[XREG_A0] = uart_get_buffered();    // Set return value
             break;
         
         case SBI_GET_HART_STATUS: ;
-            int hart = mscratch[10];
-            mscratch[10] = get_hart_status(hart);
+            int hart = mscratch[XREG_A0];
+            mscratch[XREG_A0] = get_hart_status(hart);
             break;
         
         case SBI_POWEROFF:

@@ -40,6 +40,7 @@ void plic_init() {
     plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
 }
 
+// Delegate handling based on irq. However, we only care about UART (10)
 void plic_handle_irq(int hart) {
     uint32_t irq;
 

@@ -1,15 +1,23 @@
+// sbi.c
+// Defines wrappers for svccalls, which are handled in sbi/svccall.c
+
+
 #include "../../sbi/src/include/svccodes.h"
 #include <hart.h>
 
 
 void sbi_putchar(char c) {
+    // a7: SBI_PUTCHAR
+    // a0: c
     asm volatile ("mv a7, %0\nmv a0, %1\necall" :: "r"(SBI_PUTCHAR), "r"(c) : "a7", "a0");
 }
 
 char sbi_getchar(void) {
     char c;
 
+    // a7: SBI_GETCHAR
     asm volatile ("mv a7, %1\necall\nmv %0, a0" : "=r"(c) : "r"(SBI_GETCHAR) : "a7", "a0");
+    // a0: c
 
     return c;
 }
@@ -17,8 +25,11 @@ char sbi_getchar(void) {
 HartStatus sbi_get_hart_status(int hart) {
     HartStatus status;
 
+    // a7: SBI_GET_HART_STATUS
+    // a0: hart
     asm volatile ("mv a7, %1\nmv a0, %2\necall\nmv %0, a0" : "=r"(status) : "r"(SBI_GET_HART_STATUS), "r"(hart) : "a7", "a0");
-    
+    // a0: status
+
     return status;
 }
 

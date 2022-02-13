@@ -49,8 +49,8 @@ char uart_get_buffered(void) {
 
     mutex_sbi_lock(&mutex);
 
-    if (uart_buf_len > 0) {
-        rv = uart_buffer[uart_buf_idx];
+    if (uart_buf_len > 0) {                 // If buffer isn't empty,
+        rv = uart_buffer[uart_buf_idx];     // return char at idx, increase idx and decrease len
         
         uart_buf_idx++;
         uart_buf_idx %= UART_BUFFER_SIZE;
@@ -70,10 +70,10 @@ void uart_buffer_write(char c) {
 
     mutex_sbi_lock(&mutex);
 
-    if (uart_buf_len < UART_BUFFER_SIZE) {
-        uart_buf_len++;
+    if (uart_buf_len < UART_BUFFER_SIZE) {  // If buffer isn't full,
+        uart_buf_len++;                     // increase len
     } else {
-        uart_buf_idx++;
+        uart_buf_idx++;                     // Otherwise, overwrite the first char in buffer
         uart_buf_idx %= UART_BUFFER_SIZE;
     }
 
@@ -86,7 +86,7 @@ void uart_buffer_write(char c) {
 void uart_handle_irq(void) {
     char c;
     
-    while (1) {
+    while (1) {                 // Write as many chars to the buffer as are available
         c = uart_get();
         if (c == 0xff) {
             break;

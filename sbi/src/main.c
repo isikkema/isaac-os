@@ -34,10 +34,12 @@ void clear_bss() {
 ATTR_NAKED_NORET
 int main(int hartid) {
     if (hartid == 0) {
+        // Initialize machine devices, hart 0 status, interrupt settings, and then boot into the OS
+
         clear_bss();
         uart_init();
 
-        barrier_release(&barrier);
+        barrier_release(&barrier);  // Allow other harts through barrier
 
         plic_init();
         pmp_init();
@@ -61,7 +63,9 @@ int main(int hartid) {
         MRET();
     }
 
-    barrier_sbi_wait(&barrier);
+    barrier_sbi_wait(&barrier); // Wait for hart 0
+
+    // Initialize other hart statuses, interrupt settings, and then wait until needed
 
     pmp_init();
 

@@ -59,6 +59,7 @@ void output_char(char c) {
     }
 }
 
+// Returns 1 if enter was pressed, 0 otherwise.
 int handle_char(char c, ConsoleBuffer* cb) {
     output_char(c);
     
@@ -78,6 +79,7 @@ int handle_char(char c, ConsoleBuffer* cb) {
     return 0;
 }
 
+// Returns when a full command has been entered
 void get_command(ConsoleBuffer* cb) {
     char c;
 
@@ -91,6 +93,7 @@ void get_command(ConsoleBuffer* cb) {
     }
 }
 
+// Returns 1 if console should exit, 0 otherwise.
 int handle_command(ConsoleBuffer* cb) {
     if (strcmp("exit", cb->buffer) == 0) {
         printf("Bye :)\n");
