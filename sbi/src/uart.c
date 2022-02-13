@@ -26,6 +26,10 @@ void uart_init(void) {
     UART_BASE[UART_IER] = 0b1;  // Turn on data ready interrupts
 
     // Divisor
+    UART_BASE[UART_LCR] |= 1 << 7;      // Set DLAB
+    UART_BASE[0] = 80;                  // Set Divisor
+    UART_BASE[1] = 2;                   // ...
+    UART_BASE[UART_LCR] &= ~(1 << 7);   // Unset DLAB
 }
 
 char uart_get(void) {
