@@ -97,5 +97,23 @@ void* page_zalloc(int num_pages) {
 }
 
 void page_dealloc(void* pages) {
-    printf("TODO\n");
+    int pageid;
+    char bk_byte;
+
+    pageid = ((unsigned long) pages - (unsigned long) page_alloc_data.pages) / PS_4K;
+
+    while (1) {
+        bk_byte = page_alloc_data.bk_bytes[pageid / 4];
+        bk_byte >>= 2 * (pageid % 4);
+        if (!(bk_byte & 0b10)) {
+            printf("Expected page #%d to be taken, but it isn't\n", pageid);
+            return;
+        }
+
+        page_alloc_data.bk_bytes[pageid / 4] &= (~0b10) << (2 * (pageid % 4));
+
+        if (bk_byte & 0b01) {
+            break;
+        }
+    }
 }
