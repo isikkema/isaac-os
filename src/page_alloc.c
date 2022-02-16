@@ -3,6 +3,18 @@
 #include <printf.h>
 
 
+#define IS_TAKEN(pageid)            (page_alloc_data.bk_bytes[pageid / 4] & (0b10 << 2*(pageid % 4)))
+#define IS_LAST(pageid)             (page_alloc_data.bk_bytes[pageid / 4] & (0b01 << 2*(pageid % 4)))
+#define IS_TAKEN_AND_LAST(pageid)   ((page_alloc_data.bk_bytes[pageid / 4] >> 2*(pageid % 4)) & 0b11 == 0b11)
+
+// TODO:    SET_TAKEN
+//          SET_LAST
+//          SET_TAKEN_AND_LAST
+//          UNSET...
+
+#define GET_PAGEID(page)            (((Page*) page) - page_alloc_data.pages)
+
+
 PageAlloc page_alloc_data;
 
 
@@ -47,25 +59,27 @@ int page_alloc_init(void) {
     return 0;
 }
 
+int get_num_pages(int pageid) {
+    printf("TODO\n");
+    return -1;
+}
+
 void zero_pages(void* pages) {
     int pageid;
-    char bk_byte;
     int num_pages;
     int i;
 
-    pageid = ((unsigned long) pages - (unsigned long) page_alloc_data.pages) / PS_4K;
+    pageid = GET_PAGEID(pages);
     num_pages = 0;
     while (1) {
-        bk_byte = page_alloc_data.bk_bytes[pageid / 4];
-        bk_byte >>= 2 * (pageid % 4);
-        if (!(bk_byte & 0b10)) {
+        if (!IS_TAKEN(pageid)) {
             printf("Expected pageid %d to be taken, but it isn't\n", pageid);
             return;
         }
 
         num_pages++;
 
-        if (bk_byte & 0b01) {
+        if (IS_LAST(pageid)) {
             break;
         }
 
@@ -79,16 +93,13 @@ void zero_pages(void* pages) {
 
 void* page_alloc(int num_pages) {
     int i, j;
-    char bk_byte;
     int num_found;
     int found_flag;
 
     num_found = 0;
     found_flag = 0;
     for (i = 0; i < page_alloc_data.num_pages; i++) {
-        bk_byte = page_alloc_data.bk_bytes[i / 4];
-        bk_byte = (bk_byte >> (2 * (i % 4)));
-        if (!(bk_byte & 0b10)) {
+        if (!IS_TAKEN(i)) {
             num_found++;
         } else {
             num_found = 0;
@@ -124,21 +135,18 @@ void* page_zalloc(int num_pages) {
 
 void page_dealloc(void* pages) {
     int pageid;
-    char bk_byte;
 
-    pageid = ((unsigned long) pages - (unsigned long) page_alloc_data.pages) / PS_4K;
+    pageid = GET_PAGEID(pages);
 
     while (1) {
-        bk_byte = page_alloc_data.bk_bytes[pageid / 4];
-        bk_byte >>= 2 * (pageid % 4);
-        if (!(bk_byte & 0b10)) {
+        if (!IS_TAKEN(pageid)) {
             printf("Expected pageid %d to be taken, but it isn't\n", pageid);
             return;
         }
 
         page_alloc_data.bk_bytes[pageid / 4] &= ~(0b10 << (2 * (pageid % 4)));
 
-        if (bk_byte & 0b01) {
+        if (IS_LAST(pageid)) {
             break;
         }
 
@@ -148,14 +156,11 @@ void page_dealloc(void* pages) {
 
 void print_allocs() {
     int i;
-    char bk_byte;
     int num_found;
 
     num_found = 0;
     for (i = 0; i < page_alloc_data.num_pages; i++) {
-        bk_byte = page_alloc_data.bk_bytes[i / 4];
-        bk_byte = (bk_byte >> (2 * (i % 4)));
-        if (bk_byte & 0b10) {
+        if (IS_TAKEN(i)) {
             num_found++;
         } else if (num_found > 0) {
             printf("Corruption at %d\n", i);
@@ -163,7 +168,7 @@ void print_allocs() {
         }
         
 
-        if (bk_byte & 0b01) {
+        if (IS_LAST(i)) {
             if (num_found > 0) {
                 printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", i-num_found+1, page_alloc_data.pages + (i-num_found+1), num_found);
             }
