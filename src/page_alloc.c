@@ -27,9 +27,10 @@ int page_alloc_init(void) {
     pages = (heap_size / (PS_4K + 0.25));
     bk_bytes = (pages + 3) / 4;
 
-    page_alloc_data.pages = (Page*) _HEAP_START;
-    page_alloc_data.bk_bytes = (char*) (page_alloc_data.pages + pages);
-    page_alloc_data.num_pages = pages;
+    page_alloc_data.pages           = (Page*) _HEAP_START;
+    page_alloc_data.bk_bytes        = (char*) (page_alloc_data.pages + pages);
+    page_alloc_data.num_pages       = pages;
+    page_alloc_data.num_bk_bytes    = bk_bytes;
 
     printf("bk_bytes:   %ld\n", bk_bytes);
     printf("pages:      %ld\n", pages);
@@ -51,6 +52,38 @@ void zero_pages(void* pages) {
 }
 
 void* page_alloc(int num_pages) {
+    int i, j;
+    char bk_byte;
+    int num_found;
+    int found_flag;
+
+    num_found = 0;
+    found_flag = 0;
+    for (i = 0; i < page_alloc_data.num_pages; i++) {
+        bk_byte = page_alloc_data.bk_bytes[i / 4];
+        bk_byte = (bk_byte >> (2 * (i % 4)));
+        if (!(bk_byte & 0b10)) {
+            num_found++;
+        } else {
+            num_found = 0;
+        }
+
+        if (num_found == num_pages) {
+            found_flag = 1;
+            break;
+        }
+    }
+
+    if (found_flag) {
+        page_alloc_data.bk_bytes[i / 4] |= 0b11 << (2 * (i % 4));
+        for (j = i-1; j > i - num_found; j--) {
+            page_alloc_data.bk_bytes[i / 4] &= (~0b11) << (2 * (i % 4));
+            page_alloc_data.bk_bytes[i / 4] |= 0b10 << (2 * (i % 4));
+        }
+
+        return page_alloc_data.pages + (i - num_found + 1);
+    }
+
     return NULL;
 }
 

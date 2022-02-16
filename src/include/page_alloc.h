@@ -12,9 +12,10 @@ typedef struct Page {
 } Page;
 
 typedef struct PageAlloc {
-    char* bk_bytes;
     Page* pages;
+    char* bk_bytes;
     int num_pages;
+    int num_bk_bytes;
 } PageAlloc;
 
 
