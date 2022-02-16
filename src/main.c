@@ -10,17 +10,24 @@ int main(int hart) {
     
     page_alloc(1);
     page_alloc(2);
-    void* p = page_alloc(3);
+    char* a = page_alloc(3);
     page_alloc(2);
     page_alloc(1);
     
+    a[0] = 'h';
+    a[1] = 'e';
+    a[2] = 'l';
+    a[3] = 'l';
+    a[4] = 'o';
+    a[5] = '\0';
     print_allocs();
 
-    page_dealloc(p);
+    page_dealloc(a);
 
     print_allocs();
 
-    page_alloc(1);
+    char* b = page_zalloc(1);
+    printf("[%s]\n", b);
 
     print_allocs();
 

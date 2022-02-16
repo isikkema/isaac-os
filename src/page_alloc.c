@@ -48,7 +48,33 @@ int page_alloc_init(void) {
 }
 
 void zero_pages(void* pages) {
-    printf("TODO\n");
+    int pageid;
+    char bk_byte;
+    int num_pages;
+    int i;
+
+    pageid = ((unsigned long) pages - (unsigned long) page_alloc_data.pages) / PS_4K;
+    num_pages = 0;
+    while (1) {
+        bk_byte = page_alloc_data.bk_bytes[pageid / 4];
+        bk_byte >>= 2 * (pageid % 4);
+        if (!(bk_byte & 0b10)) {
+            printf("Expected pageid %d to be taken, but it isn't\n", pageid);
+            return;
+        }
+
+        num_pages++;
+
+        if (bk_byte & 0b01) {
+            break;
+        }
+
+        pageid++;
+    }
+
+    for (i = 0; i < num_pages * PS_4K / 8; i++) {
+        ((unsigned long*) pages)[i] = 0UL;
+    }
 }
 
 void* page_alloc(int num_pages) {
