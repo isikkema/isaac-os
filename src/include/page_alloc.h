@@ -26,3 +26,5 @@ int page_alloc_init(void);
 void* page_alloc(int num_pages);
 void* page_zalloc(int num_pages);
 void page_dealloc(void* pages);
+
+void print_allocs();

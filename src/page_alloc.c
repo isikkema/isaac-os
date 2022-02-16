@@ -77,7 +77,7 @@ void* page_alloc(int num_pages) {
     if (found_flag) {
         page_alloc_data.bk_bytes[i / 4] |= 0b11 << (2 * (i % 4));
         for (j = i-1; j > i - num_found; j--) {
-            page_alloc_data.bk_bytes[i / 4] &= (~0b11) << (2 * (i % 4));
+            page_alloc_data.bk_bytes[i / 4] &= ~(0b11 << (2 * (i % 4)));
             page_alloc_data.bk_bytes[i / 4] |= 0b10 << (2 * (i % 4));
         }
 
@@ -110,10 +110,35 @@ void page_dealloc(void* pages) {
             return;
         }
 
-        page_alloc_data.bk_bytes[pageid / 4] &= (~0b10) << (2 * (pageid % 4));
+        page_alloc_data.bk_bytes[pageid / 4] &= ~(0b10 << (2 * (pageid % 4)));
 
         if (bk_byte & 0b01) {
             break;
         }
     }
+}
+
+void print_allocs() {
+    int i, j;
+    char bk_byte;
+    int num_found;
+    int found_flag;
+
+    num_found = 0;
+    found_flag = 0;
+    for (i = 0; i < page_alloc_data.num_pages; i++) {
+        bk_byte = page_alloc_data.bk_bytes[i / 4];
+        bk_byte = (bk_byte >> (2 * (i % 4)));
+        if (!(bk_byte & 0b10)) {
+            num_found++;
+        } else {
+            if (num_found > 0) {
+                printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", i-num_found, page_alloc_data.pages + (i-num_found), num_found);
+            }
+
+            num_found = 0;
+        }
+    }
+
+    printf("done.\n");
 }
