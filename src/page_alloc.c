@@ -137,23 +137,14 @@ void* page_zalloc(int num_pages) {
 }
 
 void page_dealloc(void* pages) {
+    int i;
     int pageid;
+    int num_pages;
 
     pageid = GET_PAGEID(pages);
-
-    while (1) {
-        if (!IS_TAKEN(pageid)) {
-            printf("Expected pageid %d to be taken, but it isn't\n", pageid);
-            return;
-        }
-
-        UNSET_TAKEN(pageid);
-
-        if (IS_LAST(pageid)) {
-            break;
-        }
-
-        pageid++;
+    num_pages = get_num_pages(pageid);
+    for (i = pageid; i < pageid+num_pages; i++) {
+        UNSET_TAKEN(i);
     }
 }
 
