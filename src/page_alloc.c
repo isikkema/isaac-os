@@ -5,12 +5,14 @@
 
 #define IS_TAKEN(pageid)            (page_alloc_data.bk_bytes[pageid / 4] & (0b10 << 2*(pageid % 4)))
 #define IS_LAST(pageid)             (page_alloc_data.bk_bytes[pageid / 4] & (0b01 << 2*(pageid % 4)))
-#define IS_TAKEN_AND_LAST(pageid)   ((page_alloc_data.bk_bytes[pageid / 4] >> 2*(pageid % 4)) & 0b11 == 0b11)
+#define IS_TAKEN_AND_LAST(pageid)   (((page_alloc_data.bk_bytes[pageid / 4] >> 2*(pageid % 4)) & 0b11) == 0b11)
 
-// TODO:    SET_TAKEN
-//          SET_LAST
-//          SET_TAKEN_AND_LAST
-//          UNSET...
+#define SET_TAKEN(pageid)           (page_alloc_data.bk_bytes[pageid / 4] |= 0b10 << 2*(pageid % 4))
+#define SET_LAST(pageid)            (page_alloc_data.bk_bytes[pageid / 4] |= 0b01 << 2*(pageid % 4))
+#define SET_TAKEN_AND_LAST(pageid)  (page_alloc_data.bk_bytes[pageid / 4] |= 0b11 << 2*(pageid % 4))
+
+#define UNSET_TAKEN(pageid)         (page_alloc_data.bk_bytes[pageid / 4] &= ~(0b10 << 2*(pageid % 4)))
+#define UNSET_LAST(pageid)          (page_alloc_data.bk_bytes[pageid / 4] &= ~(0b01 << 2*(pageid % 4)))
 
 #define GET_PAGEID(page)            (((Page*) page) - page_alloc_data.pages)
 
@@ -60,8 +62,23 @@ int page_alloc_init(void) {
 }
 
 int get_num_pages(int pageid) {
-    printf("TODO\n");
-    return -1;
+    int num_pages;
+
+    num_pages = 1;
+    while (1) {
+        if (IS_TAKEN(pageid) && IS_LAST(pageid)) {
+            return num_pages;
+        } else if (IS_TAKEN(pageid)) {
+            num_pages++;
+        } else if (num_pages == 1) {
+            return 0;
+        } else {
+            printf("Corruption at pageid %d\n", pageid);
+            return -1;
+        }
+
+        pageid++;
+    }
 }
 
 void zero_pages(void* pages) {
@@ -70,21 +87,7 @@ void zero_pages(void* pages) {
     int i;
 
     pageid = GET_PAGEID(pages);
-    num_pages = 0;
-    while (1) {
-        if (!IS_TAKEN(pageid)) {
-            printf("Expected pageid %d to be taken, but it isn't\n", pageid);
-            return;
-        }
-
-        num_pages++;
-
-        if (IS_LAST(pageid)) {
-            break;
-        }
-
-        pageid++;
-    }
+    num_pages = get_num_pages(pageid);
 
     for (i = 0; i < num_pages * PS_4K / 8; i++) {
         ((unsigned long*) pages)[i] = 0UL;
@@ -112,10 +115,10 @@ void* page_alloc(int num_pages) {
     }
 
     if (found_flag) {
-        page_alloc_data.bk_bytes[i / 4] |= 0b11 << (2 * (i % 4));
+        SET_TAKEN_AND_LAST(i);
         for (j = i-1; j > i - num_found; j--) {
-            page_alloc_data.bk_bytes[j / 4] &= ~(0b11 << (2 * (j % 4)));
-            page_alloc_data.bk_bytes[j / 4] |= 0b10 << (2 * (j % 4));
+            UNSET_LAST(j);
+            SET_TAKEN(j);
         }
 
         return page_alloc_data.pages + (i - num_found + 1);
@@ -144,7 +147,7 @@ void page_dealloc(void* pages) {
             return;
         }
 
-        page_alloc_data.bk_bytes[pageid / 4] &= ~(0b10 << (2 * (pageid % 4)));
+        UNSET_TAKEN(pageid);
 
         if (IS_LAST(pageid)) {
             break;
@@ -156,26 +159,23 @@ void page_dealloc(void* pages) {
 
 void print_allocs() {
     int i;
-    int num_found;
+    int pageid;
+    int num_pages;
+    int total_allocated;
 
-    num_found = 0;
-    for (i = 0; i < page_alloc_data.num_pages; i++) {
-        if (IS_TAKEN(i)) {
-            num_found++;
-        } else if (num_found > 0) {
-            printf("Corruption at %d\n", i);
-            num_found = 0;
-        }
-        
-
-        if (IS_LAST(i)) {
-            if (num_found > 0) {
-                printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", i-num_found+1, page_alloc_data.pages + (i-num_found+1), num_found);
-            }
-
-            num_found = 0;
+    total_allocated = 0;
+    pageid = 0;
+    while (pageid < page_alloc_data.num_pages) {
+        num_pages = get_num_pages(pageid);
+        if (num_pages > 0) {
+            printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", pageid, page_alloc_data.pages + pageid, num_pages);
+            
+            total_allocated += num_pages;
+            pageid += num_pages;
+        } else {
+            pageid++;
         }
     }
 
-    printf("done.\n");
+    printf("Total allocated pages: %d --- Total free pages: %d\n", total_allocated, page_alloc_data.num_pages - total_allocated);
 }
