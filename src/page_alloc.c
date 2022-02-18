@@ -41,7 +41,7 @@ int page_alloc_init(void) {
     num_pages = heap_size / (PS_4K + 0.25);
     num_bk_bytes = (num_pages + 3) / 4;
 
-    page_alloc_data.pages           = (Page*) _HEAP_START;
+    page_alloc_data.pages           = (Page*) _HEAP_START;                          // Putting pages at the start and bk_bytes after pages
     page_alloc_data.bk_bytes        = (char*) (page_alloc_data.pages + num_pages);
     page_alloc_data.num_pages       = num_pages;
     page_alloc_data.num_bk_bytes    = num_bk_bytes;
@@ -54,7 +54,7 @@ int get_num_pages(int pageid) {
 
     num_pages = 1;
     for (; pageid < page_alloc_data.num_pages; pageid++) {
-        if (IS_TAKEN(pageid) && IS_LAST(pageid)) {
+        if (IS_TAKEN_AND_LAST(pageid)) {
             return num_pages;
         } else if (IS_TAKEN(pageid)) {
             num_pages++;
@@ -89,17 +89,34 @@ void* page_alloc(int num_pages) {
     num_found = 0;
     pageid = 0;
     found_flag = 0;
-    for (i = 0; i < page_alloc_data.num_pages; i++) {
-        if (!IS_TAKEN(i)) {
-            num_found++;
-        } else {
-            num_found = 0;
-            pageid = i + 1;
-        }
 
-        if (num_found == num_pages) {
+    for (i = 0; i < FREE_BLOCKS_SIZE; i++) {
+        if (page_alloc_data.free_blocks[i].num_pages >= num_pages) {
+            pageid = page_alloc_data.free_blocks[i].pageid;
             found_flag = 1;
+
+            page_alloc_data.free_blocks[i] = (FreeBlock) {
+                page_alloc_data.free_blocks[i].pageid + num_pages,
+                page_alloc_data.free_blocks[i].num_pages - num_pages
+            };
+
             break;
+        }
+    }
+
+    if (!found_flag) {
+        for (i = 0; i < page_alloc_data.num_pages; i++) {
+            if (!IS_TAKEN(i)) {
+                num_found++;
+            } else {
+                num_found = 0;
+                pageid = i + 1;
+            }
+
+            if (num_found == num_pages) {
+                found_flag = 1;
+                break;
+            }
         }
     }
 
@@ -133,8 +150,15 @@ void page_dealloc(void* pages) {
 
     pageid = GET_PAGEID(pages);
     num_pages = get_num_pages(pageid);
-    for (i = pageid; i < pageid+num_pages; i++) {
+    for (i = pageid; i < pageid + num_pages; i++) {
         UNSET_TAKEN(i);
+    }
+
+    for (i = 0; i < FREE_BLOCKS_SIZE; i++) {
+        if (page_alloc_data.free_blocks[i].num_pages == 0) {
+            page_alloc_data.free_blocks[i] = (FreeBlock) {pageid, num_pages};
+            break;
+        }
     }
 }
 

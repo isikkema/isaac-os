@@ -1,5 +1,7 @@
 #pragma once
 
+#define FREE_BLOCKS_SIZE (8)
+
 
 enum PageSize {
     PS_4K = 1 << 12,
@@ -11,7 +13,13 @@ typedef struct Page {
     char data[PS_4K];
 } Page;
 
+typedef struct FreeBlock {
+    int pageid;
+    int num_pages;
+} FreeBlock;
+
 typedef struct PageAlloc {
+    FreeBlock free_blocks[FREE_BLOCKS_SIZE];
     Page* pages;
     char* bk_bytes;
     int num_pages;
