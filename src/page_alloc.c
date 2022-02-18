@@ -53,7 +53,7 @@ int get_num_pages(int pageid) {
     int num_pages;
 
     num_pages = 1;
-    while (1) {
+    for (; pageid < page_alloc_data.num_pages; pageid++) {
         if (IS_TAKEN(pageid) && IS_LAST(pageid)) {
             return num_pages;
         } else if (IS_TAKEN(pageid)) {
@@ -64,8 +64,6 @@ int get_num_pages(int pageid) {
             printf("Corruption at pageid %d\n", pageid);
             return -1;
         }
-
-        pageid++;
     }
 }
 
