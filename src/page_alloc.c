@@ -22,8 +22,8 @@ PageAlloc page_alloc_data;
 
 int page_alloc_init(void) {
     unsigned long heap_size;
-    unsigned long pages;
-    unsigned long bk_bytes;
+    int num_pages;
+    int num_bk_bytes;
 
     if (_HEAP_START & 0xFFF) {
         printf("_HEAP_START is not aligned! (0x%08x)\n", _HEAP_START);
@@ -38,25 +38,13 @@ int page_alloc_init(void) {
     // 0.25*pages + 4096*pages + extra = heap_size
     // pages = floor(heap_size / 4096.25)
 
-    pages = (heap_size / (PS_4K + 0.25));
-    bk_bytes = (pages + 3) / 4;
+    num_pages = heap_size / (PS_4K + 0.25);
+    num_bk_bytes = (num_pages + 3) / 4;
 
     page_alloc_data.pages           = (Page*) _HEAP_START;
-    page_alloc_data.bk_bytes        = (char*) (page_alloc_data.pages + pages);
-    page_alloc_data.num_pages       = pages;
-    page_alloc_data.num_bk_bytes    = bk_bytes;
-
-    printf("bk_bytes:   %ld\n", bk_bytes);
-    printf("pages:      %ld\n", pages);
-    printf("heap_size:  %ld\n", heap_size);
-    printf("used:       %ld\n", bk_bytes + pages*4096);
-    printf("extra:      %ld\n", heap_size - (bk_bytes + pages*4096));
-
-    printf("start:      0x%08x\n", _HEAP_START);
-    printf("end:        0x%08x\n", _HEAP_END);
-    printf("first page: 0x%08x\n", (unsigned long) page_alloc_data.pages);
-    printf("bk_bytes:   0x%08x\n", (unsigned long) page_alloc_data.bk_bytes);
-    printf("bk_end:     0x%08x\n", (unsigned long) page_alloc_data.bk_bytes + bk_bytes);
+    page_alloc_data.bk_bytes        = (char*) (page_alloc_data.pages + num_pages);
+    page_alloc_data.num_pages       = num_pages;
+    page_alloc_data.num_bk_bytes    = num_bk_bytes;
 
     return 0;
 }
