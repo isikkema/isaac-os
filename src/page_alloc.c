@@ -95,17 +95,20 @@ void zero_pages(void* pages) {
 }
 
 void* page_alloc(int num_pages) {
-    int i, j;
+    int i;
+    int pageid;
     int num_found;
     int found_flag;
 
     num_found = 0;
+    pageid = 0;
     found_flag = 0;
     for (i = 0; i < page_alloc_data.num_pages; i++) {
         if (!IS_TAKEN(i)) {
             num_found++;
         } else {
             num_found = 0;
+            pageid = i + 1;
         }
 
         if (num_found == num_pages) {
@@ -114,17 +117,18 @@ void* page_alloc(int num_pages) {
         }
     }
 
-    if (found_flag) {
-        SET_TAKEN_AND_LAST(i);
-        for (j = i-1; j > i - num_found; j--) {
-            UNSET_LAST(j);
-            SET_TAKEN(j);
-        }
-
-        return page_alloc_data.pages + (i - num_found + 1);
+    if (!found_flag) {
+        return NULL;
     }
 
-    return NULL;
+    for (i = pageid; i < pageid + num_pages - 1; i++) {
+        UNSET_LAST(i);
+        SET_TAKEN(i);
+    }
+
+    SET_TAKEN_AND_LAST(i);
+
+    return page_alloc_data.pages + pageid;
 }
 
 void* page_zalloc(int num_pages) {
