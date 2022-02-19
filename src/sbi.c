@@ -33,6 +33,19 @@ HartStatus sbi_get_hart_status(int hart) {
     return status;
 }
 
+int sbi_hart_start(int hart, unsigned long target, int priv_mode) {
+    int started;
+
+    // a7: SBI_HART_START
+    // a0: hart
+    // a1: target
+    // a2: priv_mode
+    asm volatile ("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(started) : "r"(SBI_HART_START), "r"(hart), "r"(target), "r"(priv_mode) : "a7", "a0", "a1", "a2");
+    // a0: started
+
+    return started;
+}
+
 void sbi_poweroff(void) {
     asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
 }

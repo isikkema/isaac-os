@@ -25,8 +25,15 @@ void svccall_handle(int hart) {
             break;
         
         case SBI_GET_HART_STATUS: ;
-            int hart = mscratch[XREG_A0];
-            mscratch[XREG_A0] = get_hart_status(hart);
+            int hart_to_get = mscratch[XREG_A0];
+            mscratch[XREG_A0] = get_hart_status(hart_to_get);
+            break;
+        
+        case SBI_HART_START: ;
+            int             hart_to_start = mscratch[XREG_A0];
+            unsigned long   target = mscratch[XREG_A1];
+            int             priv_mode = mscratch[XREG_A2];
+            mscratch[XREG_A0] = hart_start(hart_to_start, target, priv_mode);
             break;
         
         case SBI_POWEROFF:

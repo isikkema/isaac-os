@@ -29,3 +29,4 @@ extern HartData sbi_hart_data[NUM_HARTS];
 
 
 HartStatus get_hart_status(unsigned int hart);
+int hart_start(unsigned int hart, unsigned long target, int priv_mode);
