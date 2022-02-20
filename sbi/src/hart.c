@@ -1,7 +1,7 @@
 #include <hart.h>
-
-
-#define IS_VALID_HART(hart) (hart >= 0 && hart < NUM_HARTS)
+#include <clint.h>
+#include <csr.h>
+#include <start.h>
 
 
 HartData sbi_hart_data[NUM_HARTS];
@@ -29,9 +29,39 @@ int hart_start(unsigned int hart, unsigned long target, int priv_mode) {
     sbi_hart_data[hart].status = HS_STARTING;
     sbi_hart_data[hart].target_address = target;
     sbi_hart_data[hart].priv = priv_mode;
-    // set msip
+    clint_set_msip(hart);
 
     // unlock
 
     return 1;
+}
+
+int hart_stop(unsigned int hart) {
+    return 0;
+}
+
+void hart_handle_msip(unsigned int hart) {
+    if (!IS_VALID_HART(hart)) {
+        return;
+    }
+    
+    // lock
+
+    clint_unset_msip(hart);
+
+    printf("handling msip -- %d -- %d\n", hart, sbi_hart_data[hart].status);
+
+    if (sbi_hart_data[hart].status == HS_STARTING) {
+        CSR_WRITE("mepc", sbi_hart_data[hart].target_address);
+        CSR_WRITE("mstatus", (sbi_hart_data[hart].priv << MSTATUS_MPP_BIT) | MSTATUS_MPIE | MSTATUS_FS_INITIAL);
+        CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE);
+        CSR_WRITE("mideleg", SIP_SEIP | SIP_SSIP | SIP_STIP);
+        CSR_WRITE("medeleg", MEDELEG_ALL);
+        CSR_WRITE("sscratch", hart);
+
+        sbi_hart_data[hart].status = HS_STARTED;
+    }
+
+    // unlock
+    MRET();
 }

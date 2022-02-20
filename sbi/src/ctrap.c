@@ -6,6 +6,7 @@
 #include <svccall.h>
 #include <printf.h>
 #include <plic.h>
+#include <clint.h>
 
 
 void c_trap(void) {
@@ -26,7 +27,8 @@ void c_trap(void) {
     if (is_async) {
         switch (mcause) {
             case 3: // MSIP
-                printf("MSIP UNIMPLEMENTED!\n");
+                printf("GOT MSIP\n");
+                hart_handle_msip(mhartid);
                 break;
 
             case 11:

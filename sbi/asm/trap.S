@@ -28,6 +28,14 @@ sbi_trap_vector:
 
     # Go into C
     la      sp, _stack_end
+    la      gp, __global_pointer$
+
+    # Multiple stacks again
+    csrr    t0, mhartid
+    li      t1, 4096
+    mul     t0, t0, t1
+    sub     sp, sp, t0
+
     call    c_trap
     csrr    t6, mscratch
 
