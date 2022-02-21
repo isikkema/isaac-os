@@ -8,28 +8,24 @@
 
 
 void test2() {
-    printf("printing\n");
+    printf("printing from test2\n");
 }
 
 ATTR_NAKED_NORET
 void test_function(void) {
-    printf("a\n");
+    printf("Running test_function()\n");
     test2();
-    printf("b\n");
+    printf("After test2\n");
 
     sbi_hart_stop();
 
     printf("failed to stop hart\n");
-
-    while (1) {};
+    park();
 }
 
 int main(int hart) {
-    sbi_hart_start(3, (unsigned long) hart_start_start, 1);
-
-    while (1) {};
-    // run_console();
-    // sbi_poweroff();
+    run_console();
+    sbi_poweroff();
     
     return 0;
 }

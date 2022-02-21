@@ -2,6 +2,7 @@
 #include <sbi.h>
 #include <printf.h>
 #include <string.h>
+#include <start.h>
 
 
 char blocking_getchar() {
@@ -102,6 +103,8 @@ int handle_command(ConsoleBuffer* cb) {
         print_hart_status();
     } else if (strcmp("poweroff", cb->buffer) == 0) {
         poweroff();
+    } else if (strcmp("starthart3", cb->buffer) == 0) {
+        sbi_hart_start(3, (unsigned long) hart_start_start, 1);
     } else {
         printf("Unknown command: %s\n", cb->buffer);
     }
