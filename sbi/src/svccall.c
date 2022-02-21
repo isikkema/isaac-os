@@ -36,6 +36,10 @@ void svccall_handle(int hart) {
             mscratch[XREG_A0] = hart_start(hart_to_start, target, priv_mode);
             break;
         
+        case SBI_HART_STOP:
+            mscratch[XREG_A0] = hart_stop(hart);
+            break;
+        
         case SBI_POWEROFF:
             *((unsigned short*) 0x100000) = 0x5555;
             break;

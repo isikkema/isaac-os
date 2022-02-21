@@ -37,6 +37,17 @@ int hart_start(unsigned int hart, unsigned long target, int priv_mode) {
 }
 
 int hart_stop(unsigned int hart) {
+    sbi_hart_data[hart].status = HS_STOPPED;
+    CSR_WRITE("mepc", park);
+    CSR_WRITE("mstatus", MSTATUS_MPP_MACHINE | MSTATUS_MPIE);
+    CSR_WRITE("mie", MIE_MSIE);
+    CSR_WRITE("satp", 0);
+    CSR_WRITE("sscratch", 0);
+    CSR_WRITE("stvec", 0);
+    CSR_WRITE("sepc", 0);
+    CSR_WRITE("mip", 0);
+    MRET();
+
     return 0;
 }
 

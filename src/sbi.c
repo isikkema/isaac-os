@@ -46,6 +46,14 @@ int sbi_hart_start(int hart, unsigned long target, int priv_mode) {
     return started;
 }
 
+int sbi_hart_stop(void) {
+    int stopped;
+
+    asm volatile ("mv a7, %1\necall\nmv %0, a0" : "=r"(stopped) : "r"(SBI_HART_STOP) : "a7", "a0");
+
+    return stopped;
+}
+
 void sbi_poweroff(void) {
     asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
 }

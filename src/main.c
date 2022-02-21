@@ -17,7 +17,11 @@ void test_function(void) {
     test2();
     printf("b\n");
 
-    sbi_poweroff();
+    sbi_hart_stop();
+
+    printf("failed to stop hart\n");
+
+    while (1) {};
 }
 
 int main(int hart) {
