@@ -74,7 +74,24 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
 }
 
 void mmu_free(PageTable* tb) {
+    uint64_t entry;
+    PageTable* next_tb;
+    void* pages;
+    int i;
 
+    for (i = 0; i < 512; i++) {
+        entry = tb->entries[i];
+        if (!(entry & PB_VALID)) {
+            continue;
+        } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) { // Leaf
+            tb->entries[i] = entry & ~PB_VALID;
+        } else { // Branch
+            next_tb = (entry << 2) & 0xFFFFFFFFFFF000UL;
+            mmu_free(next_tb);
+        }
+    }
+
+    page_dealloc(tb);
 }
 
 uint64_t mmu_translate(PageTable* tb, uint64_t vaddr) {
