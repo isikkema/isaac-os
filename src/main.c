@@ -5,6 +5,7 @@
 #include <sbi.h>
 #include <csr.h>
 #include <start.h>
+#include <mmu.h>
 
 
 void test2() {
@@ -24,7 +25,20 @@ void test_function(void) {
 }
 
 int main(int hart) {
-    run_console();
+    if (page_alloc_init()) {
+        printf("Failed to init page\n");
+        return 1;
+    }
+
+    PageTable* tb = page_zalloc(1);
+
+    mmu_map(tb, 0x30000000, 0x30000000, PB_READ | PB_WRITE | PB_EXECUTE);
+    mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
+    mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
+
+    mmu_print(tb, 2);
+
+    // run_console();
     sbi_poweroff();
     
     return 0;
