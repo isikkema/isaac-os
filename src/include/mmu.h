@@ -34,7 +34,8 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits);
 void mmu_free(PageTable* tb);
 uint64_t mmu_translate(PageTable* tb, uint64_t vaddr);
 
-void mmu_print(PageTable* tb, int level);
+void mmu_table_print(PageTable* tb, int level);
+void mmu_translations_print(PageTable* tb);
 
 
 extern PageTable* kernel_mmu_table;

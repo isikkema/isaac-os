@@ -36,7 +36,9 @@ int main(int hart) {
     mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
     mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
 
-    mmu_print(tb, 2);
+    mmu_table_print(tb, 2);
+    mmu_translations_print(tb);
+    print_allocs();
 
     // run_console();
     sbi_poweroff();
