@@ -15,12 +15,12 @@ Allocation* free_head;
 uint64_t kernel_heap_vaddr = KERNEL_HEAP_START_VADDR;
 
 
-void free_list_push(Allocation* node) {
-    node->next = free_head;
-    node->prev = free_head->prev;
+void free_list_insert_after(Allocation* node, Allocation* dst) {
+    node->prev = dst;
+    node->next = dst->next;
 
-    node->prev->next = node;
-    node->next->prev = node;
+    dst->next->prev = node;
+    dst->next = node;
 }
 
 void free_list_remove(Allocation* node) {
@@ -58,9 +58,13 @@ bool kmalloc_init(void) {
     }
 
     free_head = page; // todo: change to virt
-    free_head->size = 0;
+    free_head->size = PS_4K - sizeof(Allocation);
     free_head->prev = free_head;
     free_head->next = free_head;
+
+    if (split_node(free_head, 0) < 0) {
+        return false;
+    }
 
     return true;
 }
@@ -87,7 +91,7 @@ void* kmalloc(size_t bytes) {
         // todo: map to virt
         // free_node = virt
         free_node->size = ((uint64_t) num_pages) * PS_4K - sizeof(Allocation);
-        free_list_push(free_node);
+        free_list_insert_after(free_node, free_head->prev);
     }
 
     if (split_node(free_node, bytes) < 0) {
@@ -105,9 +109,18 @@ void* kzalloc(size_t bytes) {
 
 void kfree(void* mem) {
     Allocation* node;
+    Allocation* it;
 
     node = ((Allocation*) mem) - 1;
-    free_list_push(node);
+    
+    for (it = free_head->prev; it != free_head; it = it->prev) {
+        if (it < node) {
+            break;
+        }
+    }
+
+    // it is now the node right before mem in contiguous memory
+    free_list_insert_after(node, it);
 }
 
 void coalesce_free_list(void) {

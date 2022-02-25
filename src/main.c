@@ -36,13 +36,19 @@ int main(int hart) {
 
     kmalloc_init();
 
-    void* tmp;
-    printf("kmalloced: 0x%08x\n", tmp = kmalloc(10));
-    printf("kmalloced: 0x%08x\n", kmalloc(20));
-    printf("kmalloced: 0x%08x\n", kmalloc(3995));
-    printf("kmalloced: 0x%08x\n", kmalloc(4097));
+    void* tmp1;
+    void* tmp2;
+    void* tmp3;
+    void* tmp4;
+    printf("kmalloced: 0x%08x\n", tmp1 = kmalloc(10));
+    printf("kmalloced: 0x%08x\n", tmp2 = kmalloc(20));
+    printf("kmalloced: 0x%08x\n", tmp3 = kmalloc(3995));
+    printf("kmalloced: 0x%08x\n", tmp4 = kmalloc(4097));
 
-    kfree(tmp);
+    kfree(tmp2);
+    kfree(tmp4);
+    kfree(tmp1);
+    kfree(tmp3);
     kmalloc_print();
 
 
@@ -50,7 +56,7 @@ int main(int hart) {
     // mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
     // mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
 
-    // mmu_table_print(tb, 2);
+    mmu_table_print(tb, 2);
     // mmu_translations_print(tb);
     print_allocs();
 
