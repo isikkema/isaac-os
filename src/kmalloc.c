@@ -16,14 +16,11 @@ uint64_t kernel_heap_vaddr = KERNEL_HEAP_START_VADDR;
 
 
 void free_list_push(Allocation* node) {
-    Allocation* last;
-
-    last = free_head->prev;
-
     node->next = free_head;
     node->prev = free_head->prev;
 
-    last->next = node;
+    node->prev->next = node;
+    node->next->prev = node;
 }
 
 void free_list_remove(Allocation* node) {
@@ -31,7 +28,7 @@ void free_list_remove(Allocation* node) {
     node->next->prev = node->prev;
 }
 
-size_t split_node(Allocation* node, size_t bytes) {
+int64_t split_node(Allocation* node, size_t bytes) {
     Allocation* new_node;
     int64_t new_size;
 
@@ -40,7 +37,7 @@ size_t split_node(Allocation* node, size_t bytes) {
         return new_size;
     }
 
-    new_node = ((uint8_t*) node) + sizeof(Allocation) + bytes;
+    new_node = (Allocation*) (((uint8_t*) node) + sizeof(Allocation) + bytes);
     new_node->size = new_size;
     node->size = bytes;
 
@@ -56,11 +53,11 @@ bool kmalloc_init(void) {
     Allocation* page;
 
     page = page_zalloc(1);
-    if (!mmu_map(kernel_mmu_table, kernel_heap_vaddr, page, PB_READ | PB_WRITE)) {
+    if (!mmu_map(kernel_mmu_table, kernel_heap_vaddr, (uint64_t) page, PB_READ | PB_WRITE)) {
         return false;
     }
 
-    free_head = (Allocation*) page; // todo: change to virt
+    free_head = page; // todo: change to virt
     free_head->size = 0;
     free_head->prev = free_head;
     free_head->next = free_head;
@@ -106,8 +103,11 @@ void* kzalloc(size_t bytes) {
     return NULL;
 }
 
-void kfree(void *mem) {
-    printf("TODO\n");
+void kfree(void* mem) {
+    Allocation* node;
+
+    node = ((Allocation*) mem) - 1;
+    free_list_push(node);
 }
 
 void coalesce_free_list(void) {

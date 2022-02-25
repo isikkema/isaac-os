@@ -10,7 +10,7 @@
 bool kmalloc_init(void);
 void* kmalloc(size_t bytes);
 void* kzalloc(size_t bytes);
-void kfree(void *mem);
+void kfree(void* mem);
 void coalesce_free_list(void);
 
 void kmalloc_print();

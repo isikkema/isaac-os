@@ -36,11 +36,13 @@ int main(int hart) {
 
     kmalloc_init();
 
-    printf("kmalloced: 0x%08x\n", kmalloc(10));
+    void* tmp;
+    printf("kmalloced: 0x%08x\n", tmp = kmalloc(10));
     printf("kmalloced: 0x%08x\n", kmalloc(20));
     printf("kmalloced: 0x%08x\n", kmalloc(3995));
     printf("kmalloced: 0x%08x\n", kmalloc(4097));
 
+    kfree(tmp);
     kmalloc_print();
 
 
