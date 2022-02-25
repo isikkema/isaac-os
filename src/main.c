@@ -49,6 +49,9 @@ int main(int hart) {
     kfree(tmp4);
     kfree(tmp1);
     kfree(tmp3);
+
+    coalesce_free_list();
+    
     kmalloc_print();
 
 

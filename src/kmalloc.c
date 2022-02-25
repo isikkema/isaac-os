@@ -119,12 +119,23 @@ void kfree(void* mem) {
         }
     }
 
-    // it is now the node right before mem in contiguous memory
+    // `it` is now the node right before mem in contiguous memory
     free_list_insert_after(node, it);
 }
 
+// This should work in virt mem
 void coalesce_free_list(void) {
-    printf("TODO\n");
+    Allocation* it;
+
+    it = free_head->next; 
+    while (it != free_head) {
+        if (((uint8_t*) it) + sizeof(Allocation) + it->size == (uint8_t*) it->next) {
+            it->size += sizeof(Allocation) + it->next->size;
+            free_list_remove(it->next);
+        } else {
+            it = it->next;
+        }
+    }
 }
 
 void kmalloc_print() {
