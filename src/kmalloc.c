@@ -2,6 +2,7 @@
 #include <mmu.h>
 #include <page_alloc.h>
 #include <printf.h>
+#include <lock.h>
 
 
 typedef struct Allocation {
@@ -12,6 +13,7 @@ typedef struct Allocation {
 
 
 Allocation* free_head;
+Mutex kmalloc_lock;
 uint64_t kernel_heap_vaddr = KERNEL_HEAP_START_VADDR;
 
 
@@ -73,6 +75,8 @@ void* kmalloc(size_t bytes) {
     Allocation* free_node;
     int num_pages;
 
+    mutex_sbi_lock(&kmalloc_lock);
+
     for (free_node = free_head->next; free_node != free_head; free_node = free_node->next) {
         if (free_node->size >= bytes) {
             break;
@@ -85,6 +89,7 @@ void* kmalloc(size_t bytes) {
         
         free_node = page_alloc(num_pages);
         if (free_node == NULL) {
+            mutex_unlock(&kmalloc_lock);
             return NULL;
         }
         
@@ -95,11 +100,13 @@ void* kmalloc(size_t bytes) {
     }
 
     if (split_node(free_node, bytes) < 0) {
+        mutex_unlock(&kmalloc_lock);
         return NULL;
     }
 
     free_list_remove(free_node);
 
+    mutex_unlock(&kmalloc_lock);
     return free_node + 1;   // Skip sizeof(Allocation) bytes
 }
 
@@ -113,6 +120,8 @@ void kfree(void* mem) {
 
     node = ((Allocation*) mem) - 1;
     
+    mutex_sbi_lock(&kmalloc_lock);
+
     for (it = free_head->prev; it != free_head; it = it->prev) {
         if (it < node) {
             break;
@@ -121,6 +130,9 @@ void kfree(void* mem) {
 
     // `it` is now the node right before mem in contiguous memory
     free_list_insert_after(node, it);
+    coalesce_free_list();
+
+    mutex_unlock(&kmalloc_lock);
 }
 
 // This should work in virt mem
