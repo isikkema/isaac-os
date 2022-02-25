@@ -6,6 +6,7 @@
 #include <csr.h>
 #include <start.h>
 #include <mmu.h>
+#include <kmalloc.h>
 
 
 void test2() {
@@ -31,13 +32,24 @@ int main(int hart) {
     }
 
     PageTable* tb = page_zalloc(1);
+    kernel_mmu_table = tb;
 
-    mmu_map(tb, 0x30000000, 0x30000000, PB_READ | PB_WRITE | PB_EXECUTE);
-    mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
-    mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
+    kmalloc_init();
 
-    mmu_table_print(tb, 2);
-    mmu_translations_print(tb);
+    printf("kmalloced: 0x%08x\n", kmalloc(10));
+    printf("kmalloced: 0x%08x\n", kmalloc(20));
+    printf("kmalloced: 0x%08x\n", kmalloc(3995));
+    printf("kmalloced: 0x%08x\n", kmalloc(4097));
+
+    kmalloc_print();
+
+
+    // mmu_map(tb, 0x30000000, 0x30000000, PB_READ | PB_WRITE | PB_EXECUTE);
+    // mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
+    // mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
+
+    // mmu_table_print(tb, 2);
+    // mmu_translations_print(tb);
     print_allocs();
 
     // run_console();
