@@ -41,31 +41,8 @@ int main(int hart) {
         return 1;
     }
 
-    void* tmp1;
-    void* tmp2;
-    void* tmp3;
-    void* tmp4;
-    printf("kmalloced: 0x%08lx\n", tmp1 = kmalloc(10));
-    printf("kmalloced: 0x%08lx\n", tmp2 = kmalloc(20));
-    printf("kmalloced: 0x%08lx\n", tmp3 = kmalloc(3995));
-    printf("kmalloced: 0x%08lx\n", tmp4 = kmalloc(4097));
-
-    memcpy(tmp1, "Hello!", 7);
-
-    kfree(tmp2);
-    kfree(tmp4);
-    kfree(tmp1);
-    kfree(tmp3);
-
-    printf("[%s]\n", tmp1);
-    printf("kzalloced: 0x%08lx\n", tmp1 = kzalloc(10));
-    printf("[%s]\n", tmp1);
-    kfree(tmp1);
-
-    kmalloc_print(true);
-
-    print_allocs(false);
-
+    // todo: add help, debug_print, malloc, and free commands
+    //       also improve hart starting/stopping
     run_console();
     sbi_poweroff();
     
