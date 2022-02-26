@@ -3,6 +3,8 @@
 #include <printf.h>
 #include <string.h>
 #include <start.h>
+#include <kmalloc.h>
+#include <page_alloc.h>
 
 
 char blocking_getchar() {
@@ -105,6 +107,10 @@ int handle_command(ConsoleBuffer* cb) {
         poweroff();
     } else if (strcmp("starthart3", cb->buffer) == 0) {
         sbi_hart_start(3, (unsigned long) hart_start_start, 1);
+    } else if (strcmp("print_kmalloc", cb->buffer) == 0) {
+        kmalloc_print(true);
+    } else if (strcmp("print_pages", cb->buffer) == 0) {
+        print_allocs(true);
     } else if (strcmp("", cb->buffer) == 0) {
         // ignore
     } else {
