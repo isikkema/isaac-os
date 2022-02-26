@@ -1,6 +1,7 @@
 #include <page_alloc.h>
 #include <symbols.h>
 #include <printf.h>
+#include <lock.h>
 
 
 #define IS_TAKEN(pageid)            (page_alloc_data.bk_bytes[pageid / 4] & (0b10 << 2*(pageid % 4)))
@@ -18,6 +19,7 @@
 
 
 PageAlloc page_alloc_data;
+Mutex page_alloc_lock;
 
 
 bool page_alloc_init(void) {
@@ -74,12 +76,16 @@ void zero_pages(void* pages) {
     int num_pages;
     int i;
 
+    mutex_sbi_lock(&page_alloc_lock);
+
     pageid = GET_PAGEID(pages);
     num_pages = get_num_pages(pageid);
 
     for (i = 0; i < num_pages * PS_4K / 8; i++) {
         ((unsigned long*) pages)[i] = 0UL;
     }
+
+    mutex_unlock(&page_alloc_lock);
 }
 
 void* page_alloc(int num_pages) {
@@ -91,6 +97,8 @@ void* page_alloc(int num_pages) {
     num_found = 0;
     pageid = 0;
     found_flag = 0;
+
+    mutex_sbi_lock(&page_alloc_lock);
 
     for (i = 0; i < FREE_BLOCKS_SIZE; i++) {
         if (page_alloc_data.free_blocks[i].num_pages >= num_pages) {
@@ -123,6 +131,7 @@ void* page_alloc(int num_pages) {
     }
 
     if (!found_flag) {
+        mutex_unlock(&page_alloc_lock);
         return NULL;
     }
 
@@ -133,6 +142,7 @@ void* page_alloc(int num_pages) {
 
     SET_TAKEN_AND_LAST(i);
 
+    mutex_unlock(&page_alloc_lock);
     return page_alloc_data.pages + pageid;
 }
 
@@ -150,6 +160,8 @@ void page_dealloc(void* pages) {
     int pageid;
     int num_pages;
 
+    mutex_sbi_lock(&page_alloc_lock);
+
     pageid = GET_PAGEID(pages);
     num_pages = get_num_pages(pageid);
     for (i = pageid; i < pageid + num_pages; i++) {
@@ -162,6 +174,8 @@ void page_dealloc(void* pages) {
             break;
         }
     }
+
+    mutex_unlock(&page_alloc_lock);
 }
 
 void print_allocs(bool detailed) {
