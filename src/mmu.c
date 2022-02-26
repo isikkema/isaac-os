@@ -3,6 +3,7 @@
 #include <page_alloc.h>
 #include <printf.h>
 #include <lock.h>
+#include <symbols.h>
 
 
 PageTable* kernel_mmu_table;
@@ -10,18 +11,23 @@ Mutex mmu_lock;
 
 
 bool mmu_init() {
-    // uint64_t ppn;
+    kernel_mmu_table = page_zalloc(1);
+    if (kernel_mmu_table == NULL) {
+        return false;
+    }
+    
+    mmu_map_many(kernel_mmu_table, _TEXT_START,     _TEXT_START,    (_TEXT_END-_TEXT_START),        PB_READ | PB_EXECUTE);
+	mmu_map_many(kernel_mmu_table, _DATA_START,     _DATA_START,    (_DATA_END-_DATA_START),        PB_READ | PB_WRITE);
+	mmu_map_many(kernel_mmu_table, _RODATA_START,   _RODATA_START,  (_RODATA_END-_RODATA_START),    PB_READ);
+	mmu_map_many(kernel_mmu_table, _BSS_START,      _BSS_START,     (_BSS_END-_BSS_START),          PB_READ | PB_WRITE);
+	mmu_map_many(kernel_mmu_table, _STACK_START,    _STACK_START,   (_STACK_END-_STACK_START),      PB_READ | PB_WRITE);
+	mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE);
 
-    // ppn = (uint64_t) page_zalloc(1) >> 12;
-    // if (ppn == 0) {
-    //     return false;
-    // }
+    return true; // Don't enable virt yet
+    
+    CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(kernel_mmu_table));
 
-    // CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(ppn));
-
-    // return true;
-
-    return false;
+    return true;
 }
 
 bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
@@ -61,14 +67,27 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
     // tb is now a level 0 table
 
     // Do we not have to page fault if we find ourselves trying to map over a leaf that's already valid?
-    // if (tb->entries[vpn[0]] | PB_VALID) {
+    // if (tb->entries[vpn[0]] & PB_VALID) {
     //     return false;
     // }
 
+    // Set entry to paddr's ppn
     entry = (GET_PPN(paddr) << 10) | bits | PB_VALID;
     tb->entries[vpn[0]] = entry;
 
     mutex_unlock(&mmu_lock);
+
+    return true;
+}
+
+bool mmu_map_many(PageTable* tb, uint64_t vaddr_start, uint64_t paddr_start, uint64_t num_bytes, uint64_t bits) {
+    uint64_t i;
+
+    for (i = 0; i < num_bytes; i += PS_4K) {
+        if (!mmu_map(tb, vaddr_start + i, paddr_start + i, bits)) {
+            return false;
+        }
+    }
 
     return true;
 }
@@ -113,6 +132,7 @@ uint64_t mmu_translate(PageTable* tb, uint64_t vaddr) {
             mutex_unlock(&mmu_lock);
             return -1UL;
         } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) { // Leaf
+            // Just getting the address chunks I want instead of ppn pieces so I don't have to shift
             paddr = (entry << 2)    & 0xFFFFFFFFFFF000UL;
             paddr_chunks[0] = paddr & 0x000000001FF000UL;
             paddr_chunks[1] = paddr & 0x0000003FE00000UL;

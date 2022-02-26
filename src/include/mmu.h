@@ -31,6 +31,7 @@ typedef struct PageTable {
 
 bool mmu_init();
 bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits);
+bool mmu_map_many(PageTable* tb, uint64_t vaddr_start, uint64_t paddr_start, uint64_t num_bytes, uint64_t bits);
 void mmu_free(PageTable* tb);
 uint64_t mmu_translate(PageTable* tb, uint64_t vaddr);
 

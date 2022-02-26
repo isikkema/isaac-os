@@ -94,7 +94,7 @@ void* kmalloc(size_t bytes) {
         // No node big enough for bytes. Alloc more
         num_pages = (sizeof(Allocation) + bytes + PS_4K - 1) / PS_4K;
         
-        free_node = page_alloc(num_pages);
+        free_node = page_zalloc(num_pages);
         if (free_node == NULL) {
             mutex_unlock(&kmalloc_lock);
             return NULL;
