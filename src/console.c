@@ -5,6 +5,7 @@
 #include <start.h>
 #include <kmalloc.h>
 #include <page_alloc.h>
+#include <stdbool.h>
 
 
 char blocking_getchar() {
@@ -96,25 +97,67 @@ void get_command(ConsoleBuffer* cb) {
     }
 }
 
+int get_args(char* command_copy, char** args) {
+    char c;
+    int argi;
+    bool in_arg;
+    int i;
+
+    // Set everything to NULL
+    memset(args, 0, CONSOLE_BUFFER_SIZE * sizeof(char*));
+
+    argi = 0;
+    in_arg = false;
+    for (i = 0; i < CONSOLE_BUFFER_SIZE; i++) {
+        c = command_copy[i];
+        if (c == ' ' || c == '\t') {
+            command_copy[i] = '\0';
+
+            in_arg = false;
+        } else if (c == '\0') {
+            return argi;
+        } else if (!in_arg) {
+            // This is the first char of an arg
+
+            args[argi] = command_copy + i;
+            argi++;
+
+            in_arg = true;
+        }
+    }
+
+    return argi;
+}
+
 // Returns 1 if console should exit, 0 otherwise.
 int handle_command(ConsoleBuffer* cb) {
-    if (strcmp("exit", cb->buffer) == 0 || strcmp("quit", cb->buffer) == 0) {
+    char command[CONSOLE_BUFFER_SIZE];
+    char* args[CONSOLE_BUFFER_SIZE];
+    int num_args;
+
+    memcpy(command, cb->buffer, CONSOLE_BUFFER_SIZE);
+    num_args = get_args(command, args);
+    if (num_args <= 0) {
+        return 0;
+    }
+
+    if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0) {
         printf("Bye :)\n");
         return 1;
-    } else if (strcmp("status", cb->buffer) == 0) {
+    } else if (strcmp("status", args[0]) == 0) {
         print_hart_status();
-    } else if (strcmp("poweroff", cb->buffer) == 0) {
+    } else if (strcmp("poweroff", args[0]) == 0) {
         poweroff();
-    } else if (strcmp("starthart3", cb->buffer) == 0) {
+    } else if (strcmp("starthart3", args[0]) == 0) {
         sbi_hart_start(3, (unsigned long) hart_start_start, 1);
-    } else if (strcmp("print_kmalloc", cb->buffer) == 0) {
+    } else if (strcmp("print_kmalloc", args[0]) == 0) {
         kmalloc_print(true);
-    } else if (strcmp("print_pages", cb->buffer) == 0) {
+    } else if (strcmp("print_pages", args[0]) == 0) {
         print_allocs(true);
-    } else if (strcmp("", cb->buffer) == 0) {
-        // ignore
+    } else if (strcmp("args", args[0]) == 0) {
+        print_args(args);
     } else {
-        printf("Unknown command: %s\n", cb->buffer);
+        printf("Unknown command: %s\n", args[0]);
     }
 
     return 0;
@@ -167,4 +210,20 @@ void print_hart_status() {
 
 void poweroff() {
     sbi_poweroff();
+}
+
+void print_args(char** args) {
+    int i;
+
+    for (i = 0; i < CONSOLE_BUFFER_SIZE; i++) {
+        if (args[i] == NULL) {
+            break;
+        } else if (i != 0) {
+            printf(" ");
+        }
+
+        printf("{%s}", args[i]);
+    }
+
+    printf("\n");
 }
