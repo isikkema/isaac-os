@@ -4,6 +4,13 @@
 // CSR_WRITE("register", variable). Must use quotes for the register name.
 #define CSR_WRITE(csr, var)   asm volatile("csrw " csr ", %0" :: "r"(var))
 
+
+#define SFENCE()                asm volatile("sfence.vma");
+#define SFENCE_ASID(x)          asm volatile("sfence.vma zero, %0" :: "r"(x))
+#define SFENCE_VMA(x)           asm volatile("sfence.vma %0, zero" :: "r"(x))
+#define SFENCE_ALL(vma, asid)   asm volatile("sfence.vma %0, %1" :: "r"(vma), "r"(asid))
+
+
 #define MRET()  asm volatile("mret")
 #define SRET()  asm volatile("sret")
 #define WFI()   asm volatile("wfi")
