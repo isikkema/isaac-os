@@ -61,11 +61,16 @@ bool kmalloc_init(void) {
     Allocation* page;
 
     page = page_zalloc(1);
+    if (page == NULL) {
+        return false;
+    }
+
     if (!mmu_map(kernel_mmu_table, kernel_heap_vaddr, (uint64_t) page, PB_READ | PB_WRITE)) {
         return false;
     }
 
-    free_head = page; // todo: change to virt
+    free_head = (Allocation*) kernel_heap_vaddr;    // Store virt address
+    kernel_heap_vaddr += PS_4K;
     free_head->size = PS_4K - sizeof(Allocation);
     free_head->prev = free_head;
     free_head->next = free_head;
@@ -78,8 +83,9 @@ bool kmalloc_init(void) {
 }
 
 void* kmalloc(size_t bytes) {
+    void* pages;
     Allocation* free_node;
-    int num_pages;
+    uint64_t num_pages;
 
     mutex_sbi_lock(&kmalloc_lock);
 
@@ -94,15 +100,20 @@ void* kmalloc(size_t bytes) {
         // No node big enough for bytes. Alloc more
         num_pages = (sizeof(Allocation) + bytes + PS_4K - 1) / PS_4K;
         
-        free_node = page_zalloc(num_pages);
-        if (free_node == NULL) {
+        pages = page_zalloc(num_pages);
+        if (pages == NULL) {
             mutex_unlock(&kmalloc_lock);
             return NULL;
         }
         
-        // todo: map to virt
-        // free_node = virt
-        free_node->size = ((uint64_t) num_pages) * PS_4K - sizeof(Allocation);
+        if (!mmu_map_many(kernel_mmu_table, kernel_heap_vaddr, (uint64_t) pages, num_pages * PS_4K, PB_READ | PB_WRITE)) {
+            mutex_unlock(&kmalloc_lock);
+            return NULL;
+        }
+
+        free_node = (Allocation*) kernel_heap_vaddr;
+        kernel_heap_vaddr += num_pages * PS_4K;
+        free_node->size = num_pages * PS_4K - sizeof(Allocation);
         free_list_insert_after(free_node, free_head->prev);
     }
 
@@ -150,7 +161,6 @@ void kfree(void* mem) {
     mutex_unlock(&kmalloc_lock);
 }
 
-// This should work in virt mem
 void coalesce_free_list(void) {
     Allocation* it;
 
@@ -171,7 +181,7 @@ void kmalloc_print(bool detailed) {
     uint64_t free_bytes;
 
     if (detailed)
-        printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", free_head, free_head->size, free_head->prev, free_head->next);
+        printf("0x%08lx: { size: %5d, prev: 0x%08lx, next: 0x%08lx }\n", free_head, free_head->size, free_head->prev, free_head->next);
 
     num_nodes = 1;
     free_bytes = 0;
@@ -181,7 +191,7 @@ void kmalloc_print(bool detailed) {
         }
 
         if (detailed)
-            printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", it, it->size, it->prev, it->next);
+            printf("0x%08lx: { size: %5d, prev: 0x%08lx, next: 0x%08lx }\n", it, it->size, it->prev, it->next);
 
         num_nodes++;
         free_bytes += it->size;

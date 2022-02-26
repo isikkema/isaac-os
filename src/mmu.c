@@ -23,8 +23,6 @@ bool mmu_init() {
 	mmu_map_many(kernel_mmu_table, _STACK_START,    _STACK_START,   (_STACK_END-_STACK_START),      PB_READ | PB_WRITE);
 	mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE);
 
-    return true; // Don't enable virt yet
-
     CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(kernel_mmu_table));
 
     return true;

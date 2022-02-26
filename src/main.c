@@ -27,7 +27,7 @@ void test_function(void) {
 
 int main(int hart) {
     if (!page_alloc_init()) {
-        printf("Failed to init page\n");
+        printf("Failed to init page_alloc\n");
         return 1;
     }
 
@@ -45,10 +45,10 @@ int main(int hart) {
     void* tmp2;
     void* tmp3;
     void* tmp4;
-    printf("kmalloced: 0x%08x\n", tmp1 = kmalloc(10));
-    printf("kmalloced: 0x%08x\n", tmp2 = kmalloc(20));
-    printf("kmalloced: 0x%08x\n", tmp3 = kmalloc(3995));
-    printf("kmalloced: 0x%08x\n", tmp4 = kmalloc(4097));
+    printf("kmalloced: 0x%08lx\n", tmp1 = kmalloc(10));
+    printf("kmalloced: 0x%08lx\n", tmp2 = kmalloc(20));
+    printf("kmalloced: 0x%08lx\n", tmp3 = kmalloc(3995));
+    printf("kmalloced: 0x%08lx\n", tmp4 = kmalloc(4097));
 
     memcpy(tmp1, "Hello!", 7);
 
@@ -58,14 +58,12 @@ int main(int hart) {
     kfree(tmp3);
 
     printf("[%s]\n", tmp1);
-    printf("kzalloced: 0x%08x\n", tmp1 = kzalloc(10));
+    printf("kzalloced: 0x%08lx\n", tmp1 = kzalloc(10));
     printf("[%s]\n", tmp1);
     kfree(tmp1);
 
-    kmalloc_print(false);
+    kmalloc_print(true);
 
-    // mmu_table_print(kernel_mmu_table, 2);
-    // mmu_translations_print(kernel_mmu_table, false);
     print_allocs(false);
 
     // run_console();
