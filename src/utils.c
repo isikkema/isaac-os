@@ -1,5 +1,5 @@
 #include <utils.h>
-#include <printf.h>
+#include <string.h>
 
 
 int atoi(char* str) {
@@ -7,8 +7,6 @@ int atoi(char* str) {
     int tens;
     int digit;
     int i;
-
-    printf("{%s}\n", str);
 
     tens = 1;
     num = 0;

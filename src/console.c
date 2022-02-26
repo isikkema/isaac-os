@@ -150,8 +150,8 @@ int handle_command(ConsoleBuffer* cb) {
         print_hart_status();
     } else if (strcmp("poweroff", args[0]) == 0) {
         poweroff();
-    } else if (strcmp("starthart3", args[0]) == 0) {
-        sbi_hart_start(3, (unsigned long) hart_start_start, 1);
+    } else if (strcmp("start", args[0]) == 0) {
+        start_hart(argc, args);
     } else if (strcmp("print", args[0]) == 0) {
         cmd_print(argc, args);
     } else if (strcmp("args", args[0]) == 0) {
@@ -251,4 +251,21 @@ void test(int argc, char** args) {
     if (argc < 2) return;
 
     printf("{%s} => {%d}\n", args[1], atoi(args[1]));
+}
+
+void start_hart(int argc, char** args) {
+    int hart;
+
+    if (argc < 2) {
+        printf("start: not enough arguments\n");
+        return;
+    }
+
+    hart = atoi(args[1]);
+    if (hart == 0) {
+        printf("start: invalid argument: %s\n", args[1]);
+        return;
+    }
+
+    sbi_hart_start(hart, (unsigned long) hart_start_start, 1);
 }
