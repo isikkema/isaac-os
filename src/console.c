@@ -96,7 +96,7 @@ void get_command(ConsoleBuffer* cb) {
 
 // Returns 1 if console should exit, 0 otherwise.
 int handle_command(ConsoleBuffer* cb) {
-    if (strcmp("exit", cb->buffer) == 0) {
+    if (strcmp("exit", cb->buffer) == 0 || strcmp("quit", cb->buffer) == 0) {
         printf("Bye :)\n");
         return 1;
     } else if (strcmp("status", cb->buffer) == 0) {
@@ -105,6 +105,8 @@ int handle_command(ConsoleBuffer* cb) {
         poweroff();
     } else if (strcmp("starthart3", cb->buffer) == 0) {
         sbi_hart_start(3, (unsigned long) hart_start_start, 1);
+    } else if (strcmp("", cb->buffer) == 0) {
+        // ignore
     } else {
         printf("Unknown command: %s\n", cb->buffer);
     }
