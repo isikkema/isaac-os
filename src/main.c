@@ -52,9 +52,8 @@ int main(int hart) {
     kfree(tmp1);
     kfree(tmp3);
 
-    kmalloc_print();
     printf("[%s]\n", tmp1);
-    printf("kmalloced: 0x%08x\n", tmp1 = kzalloc(10));
+    printf("kzalloced: 0x%08x\n", tmp1 = kzalloc(10));
     printf("[%s]\n", tmp1);
     kfree(tmp1);
 

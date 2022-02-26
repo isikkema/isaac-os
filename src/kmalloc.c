@@ -31,27 +31,28 @@ void free_list_remove(Allocation* node) {
     node->next->prev = node->prev;
 }
 
+// Splits the given node into two nodes, retaining at least bytes in given node.
+// Returns the size of the newly created node, 0 if not split, or -1 in case of error.
 int64_t split_node(Allocation* node, size_t bytes) {
     Allocation* new_node;
     int64_t new_size;
 
-    new_size = node->size - bytes;
-    if (new_size < 0) {
-        return new_size;
-    } else if (new_size <= sizeof(Allocation)) {
-        return 0;
+    if (node->size < bytes) {
+        return -1;  // This node isn't big enough to hold bytes anyways. Error
+    } else if (node->size <= bytes + sizeof(Allocation)) {
+        return 0;   // Big enough to hold bytes but not worth it to split the node.
     }
 
-    new_size -= sizeof(Allocation);
+    // This node is big enough to split
 
+    // Create new node
+    new_size = node->size - (bytes + sizeof(Allocation));
     new_node = (Allocation*) (((uint8_t*) node) + sizeof(Allocation) + bytes);
     new_node->size = new_size;
+
     node->size = bytes;
 
-    new_node->next = node->next;
-    new_node->prev = node;
-    new_node->next->prev = new_node;
-    node->next = new_node;
+    free_list_insert_after(new_node, node);
 
     return new_size;
 }
@@ -82,6 +83,7 @@ void* kmalloc(size_t bytes) {
 
     mutex_sbi_lock(&kmalloc_lock);
 
+    // Find first node big enough to hold bytes
     for (free_node = free_head->next; free_node != free_head; free_node = free_node->next) {
         if (free_node->size >= bytes) {
             break;
@@ -134,6 +136,7 @@ void kfree(void* mem) {
     
     mutex_sbi_lock(&kmalloc_lock);
 
+    // Find where node/mem belongs in contiguous memory
     for (it = free_head->prev; it != free_head; it = it->prev) {
         if (it < node) {
             break;
@@ -151,9 +154,9 @@ void kfree(void* mem) {
 void coalesce_free_list(void) {
     Allocation* it;
 
-    it = free_head->next; 
+    it = free_head->next;
     while (it != free_head) {
-        if (((uint8_t*) it) + sizeof(Allocation) + it->size == (uint8_t*) it->next) {
+        if (((uint8_t*) it) + sizeof(Allocation) + it->size == (uint8_t*) it->next) {   // If it->next is right after it in contiguous mem, combine them
             it->size += sizeof(Allocation) + it->next->size;
             free_list_remove(it->next);
         } else {
