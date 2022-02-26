@@ -47,3 +47,4 @@ gdb: cosc562.elf
 
 clean:
 	rm -f objs/*.o deps/*.d cosc562.elf
+	make -C sbi clean
