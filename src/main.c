@@ -26,7 +26,7 @@ void test_function(void) {
 }
 
 int main(int hart) {
-    if (page_alloc_init()) {    // todo: change to bool
+    if (!page_alloc_init()) {
         printf("Failed to init page\n");
         return 1;
     }
@@ -62,16 +62,11 @@ int main(int hart) {
     printf("[%s]\n", tmp1);
     kfree(tmp1);
 
-    kmalloc_print();
-
-
-    // mmu_map(tb, 0x30000000, 0x30000000, PB_READ | PB_WRITE | PB_EXECUTE);
-    // mmu_map(tb, 0x40000000, 0x40000000, PB_READ | PB_WRITE | PB_EXECUTE);
-    // mmu_map(tb, 0x30001000, 0x30001000, PB_READ | PB_WRITE | PB_EXECUTE);
+    kmalloc_print(false);
 
     // mmu_table_print(kernel_mmu_table, 2);
-    // mmu_translations_print(tb);
-    print_allocs();
+    // mmu_translations_print(kernel_mmu_table, false);
+    print_allocs(false);
 
     // run_console();
     sbi_poweroff();

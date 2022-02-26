@@ -36,7 +36,7 @@ void mmu_free(PageTable* tb);
 uint64_t mmu_translate(PageTable* tb, uint64_t vaddr);
 
 void mmu_table_print(PageTable* tb, int level);
-void mmu_translations_print(PageTable* tb);
+void mmu_translations_print(PageTable* tb, bool detailed);
 
 
 extern PageTable* kernel_mmu_table;

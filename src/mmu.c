@@ -24,7 +24,7 @@ bool mmu_init() {
 	mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE);
 
     return true; // Don't enable virt yet
-    
+
     CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(kernel_mmu_table));
 
     return true;
@@ -95,7 +95,6 @@ bool mmu_map_many(PageTable* tb, uint64_t vaddr_start, uint64_t paddr_start, uin
 void mmu_free(PageTable* tb) {
     uint64_t entry;
     PageTable* next_tb;
-    void* pages;
     int i;
 
     for (i = 0; i < 512; i++) {
@@ -105,7 +104,7 @@ void mmu_free(PageTable* tb) {
         } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) { // Leaf
             tb->entries[i] = entry & ~PB_VALID;
         } else { // Branch
-            next_tb = (entry << 2) & 0xFFFFFFFFFFF000UL;
+            next_tb = (PageTable*) ((entry << 2) & 0xFFFFFFFFFFF000UL);
             mmu_free(next_tb);
         }
     }
@@ -157,7 +156,6 @@ uint64_t mmu_translate(PageTable* tb, uint64_t vaddr) {
 
 void mmu_table_print(PageTable* tb, int level) {
     uint64_t entry;
-    uint64_t paddr;
     int i;
 
     if (level > 2 || level < 0) return;
@@ -177,7 +175,7 @@ void mmu_table_print(PageTable* tb, int level) {
     }
 }
 
-void mmu_translations_print(PageTable* tb) {
+void mmu_translations_print(PageTable* tb, bool detailed) {
     uint64_t paddr;
     int num_translations;
     unsigned long i;
@@ -187,7 +185,8 @@ void mmu_translations_print(PageTable* tb) {
     for (i = 0; i < (1UL << 27); i++) {
         paddr = mmu_translate(tb, i << 12);
         if (paddr != -1UL) {
-            printf("0x%08x => 0x%08x\n", i << 12, paddr);
+            if (detailed)
+                printf("0x%08x => 0x%08x\n", i << 12, paddr);
             num_translations++;
         }
     }

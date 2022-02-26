@@ -20,14 +20,14 @@
 PageAlloc page_alloc_data;
 
 
-int page_alloc_init(void) {
+bool page_alloc_init(void) {
     unsigned long heap_size;
     int num_pages;
     int num_bk_bytes;
 
     if (_HEAP_START & 0xFFF) {
         printf("_HEAP_START is not aligned! (0x%08x)\n", _HEAP_START);
-        return 1;
+        return false;
     }
 
     heap_size = _HEAP_END - _HEAP_START;
@@ -46,7 +46,7 @@ int page_alloc_init(void) {
     page_alloc_data.num_pages       = num_pages;
     page_alloc_data.num_bk_bytes    = num_bk_bytes;
 
-    return 0;
+    return true;
 }
 
 int get_num_pages(int pageid) {
@@ -65,6 +65,8 @@ int get_num_pages(int pageid) {
             return -1;
         }
     }
+
+    return -1;
 }
 
 void zero_pages(void* pages) {
@@ -162,8 +164,7 @@ void page_dealloc(void* pages) {
     }
 }
 
-void print_allocs() {
-    int i;
+void print_allocs(bool detailed) {
     int pageid;
     int num_pages;
     int total_allocated;
@@ -173,7 +174,8 @@ void print_allocs() {
     while (pageid < page_alloc_data.num_pages) {
         num_pages = get_num_pages(pageid);
         if (num_pages > 0) {
-            printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", pageid, page_alloc_data.pages + pageid, num_pages);
+            if (detailed)
+                printf("pageid: %05d --- address: 0x%08x --- pages: %02d\n", pageid, page_alloc_data.pages + pageid, num_pages);
             
             total_allocated += num_pages;
             pageid += num_pages;

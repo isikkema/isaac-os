@@ -13,4 +13,4 @@ void* kzalloc(size_t bytes);
 void kfree(void* mem);
 void coalesce_free_list(void);
 
-void kmalloc_print();
+void kmalloc_print(bool detailed);

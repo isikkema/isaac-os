@@ -1,5 +1,9 @@
 #pragma once
 
+
+#include <stdbool.h>
+
+
 #define FREE_BLOCKS_SIZE (8)
 
 
@@ -30,9 +34,9 @@ typedef struct PageAlloc {
 extern PageAlloc page_alloc_data;
 
 
-int page_alloc_init(void);
+bool page_alloc_init(void);
 void* page_alloc(int num_pages);
 void* page_zalloc(int num_pages);
 void page_dealloc(void* pages);
 
-void print_allocs();
+void print_allocs(bool detailed);

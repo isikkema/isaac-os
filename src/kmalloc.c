@@ -165,17 +165,23 @@ void coalesce_free_list(void) {
     }
 }
 
-void kmalloc_print() {
+void kmalloc_print(bool detailed) {
     Allocation* it;
     uint64_t num_nodes;
     uint64_t free_bytes;
 
-    printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", free_head, free_head->size, free_head->prev, free_head->next);
+    if (detailed)
+        printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", free_head, free_head->size, free_head->prev, free_head->next);
 
     num_nodes = 1;
     free_bytes = 0;
     for (it = free_head->next; it != free_head; it = it->next) {
-        printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", it, it->size, it->prev, it->next);
+        if (it->next->prev != it) {
+            printf("Error: bad links\n");
+        }
+
+        if (detailed)
+            printf("0x%08x: { size: %5d, prev: 0x%08x, next: 0x%08x }\n", it, it->size, it->prev, it->next);
 
         num_nodes++;
         free_bytes += it->size;
