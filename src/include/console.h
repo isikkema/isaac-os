@@ -20,5 +20,6 @@ void run_console();
 
 void print_hart_status();
 void poweroff();
-void print_args(char** args);
+void print_args(int argc, char** args);
 void cmd_print(int argc, char** args);
+void test(int argc, char** args);

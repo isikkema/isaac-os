@@ -41,7 +41,7 @@ int main(int hart) {
         return 1;
     }
 
-    // todo: add help, debug_print, malloc, and free commands
+    // todo: add help, malloc, and free commands
     //       also improve hart starting/stopping
     run_console();
     sbi_poweroff();

@@ -7,6 +7,7 @@
 #include <page_alloc.h>
 #include <stdbool.h>
 #include <mmu.h>
+#include <utils.h>
 
 
 char blocking_getchar() {
@@ -154,7 +155,9 @@ int handle_command(ConsoleBuffer* cb) {
     } else if (strcmp("print", args[0]) == 0) {
         cmd_print(argc, args);
     } else if (strcmp("args", args[0]) == 0) {
-        print_args(args);
+        print_args(argc, args);
+    } else if (strcmp("test", args[0]) == 0) {
+        test(argc, args);
     } else {
         printf("Unknown command: %s\n", args[0]);
     }
@@ -211,13 +214,11 @@ void poweroff() {
     sbi_poweroff();
 }
 
-void print_args(char** args) {
+void print_args(int argc, char** args) {
     int i;
 
-    for (i = 0; i < CONSOLE_BUFFER_SIZE; i++) {
-        if (args[i] == NULL) {
-            break;
-        } else if (i != 0) {
+    for (i = 0; i < argc; i++) {
+        if (i != 0) {
             printf(" ");
         }
 
@@ -244,4 +245,10 @@ void cmd_print(int argc, char** args) {
     } else {
         printf("print: invalid argument: %s\n", args[1]);
     }
+}
+
+void test(int argc, char** args) {
+    if (argc < 2) return;
+
+    printf("{%s} => {%d}\n", args[1], atoi(args[1]));
 }
