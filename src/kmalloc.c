@@ -3,6 +3,7 @@
 #include <page_alloc.h>
 #include <printf.h>
 #include <lock.h>
+#include <string.h>
 
 
 typedef struct Allocation {
@@ -34,10 +35,14 @@ int64_t split_node(Allocation* node, size_t bytes) {
     Allocation* new_node;
     int64_t new_size;
 
-    new_size = node->size - (sizeof(Allocation) + bytes);
-    if (new_size <= 0) {
+    new_size = node->size - bytes;
+    if (new_size < 0) {
         return new_size;
+    } else if (new_size <= sizeof(Allocation)) {
+        return 0;
     }
+
+    new_size -= sizeof(Allocation);
 
     new_node = (Allocation*) (((uint8_t*) node) + sizeof(Allocation) + bytes);
     new_node->size = new_size;
@@ -111,7 +116,14 @@ void* kmalloc(size_t bytes) {
 }
 
 void* kzalloc(size_t bytes) {
-    return NULL;
+    void* mem;
+
+    mem = kmalloc(bytes);
+    if (mem == NULL) {
+        return NULL;
+    }
+
+    return memset(mem, 0, bytes);
 }
 
 void kfree(void* mem) {

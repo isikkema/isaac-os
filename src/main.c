@@ -45,13 +45,19 @@ int main(int hart) {
     printf("kmalloced: 0x%08x\n", tmp3 = kmalloc(3995));
     printf("kmalloced: 0x%08x\n", tmp4 = kmalloc(4097));
 
+    memcpy(tmp1, "Hello!", 7);
+
     kfree(tmp2);
     kfree(tmp4);
     kfree(tmp1);
     kfree(tmp3);
 
-    coalesce_free_list();
-    
+    kmalloc_print();
+    printf("[%s]\n", tmp1);
+    printf("kmalloced: 0x%08x\n", tmp1 = kzalloc(10));
+    printf("[%s]\n", tmp1);
+    kfree(tmp1);
+
     kmalloc_print();
 
 
