@@ -6,6 +6,7 @@
 #include <kmalloc.h>
 #include <page_alloc.h>
 #include <stdbool.h>
+#include <mmu.h>
 
 
 char blocking_getchar() {
@@ -133,11 +134,11 @@ int get_args(char* command_copy, char** args) {
 int handle_command(ConsoleBuffer* cb) {
     char command[CONSOLE_BUFFER_SIZE];
     char* args[CONSOLE_BUFFER_SIZE];
-    int num_args;
+    int argc;
 
     memcpy(command, cb->buffer, CONSOLE_BUFFER_SIZE);
-    num_args = get_args(command, args);
-    if (num_args <= 0) {
+    argc = get_args(command, args);
+    if (argc <= 0) {
         return 0;
     }
 
@@ -150,10 +151,8 @@ int handle_command(ConsoleBuffer* cb) {
         poweroff();
     } else if (strcmp("starthart3", args[0]) == 0) {
         sbi_hart_start(3, (unsigned long) hart_start_start, 1);
-    } else if (strcmp("print_kmalloc", args[0]) == 0) {
-        kmalloc_print(true);
-    } else if (strcmp("print_pages", args[0]) == 0) {
-        print_allocs(true);
+    } else if (strcmp("print", args[0]) == 0) {
+        cmd_print(argc, args);
     } else if (strcmp("args", args[0]) == 0) {
         print_args(args);
     } else {
@@ -226,4 +225,23 @@ void print_args(char** args) {
     }
 
     printf("\n");
+}
+
+void cmd_print(int argc, char** args) {
+    bool detailed;
+
+    detailed = false;
+    if (argc > 2 && strcmp("-v", args[2]) == 0) {
+        detailed = true;
+    }
+
+    if (strcmp("kmalloc", args[1]) == 0) {
+        kmalloc_print(detailed);
+    } else if (strcmp("pages", args[1]) == 0) {
+        print_allocs(detailed);
+    } else if (strcmp("mmu", args[1]) == 0) {
+        mmu_translations_print(kernel_mmu_table, detailed);
+    } else {
+        printf("print: invalid argument: %s\n", args[1]);
+    }
 }
