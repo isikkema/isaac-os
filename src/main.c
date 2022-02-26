@@ -66,7 +66,7 @@ int main(int hart) {
 
     print_allocs(false);
 
-    // run_console();
+    run_console();
     sbi_poweroff();
     
     return 0;

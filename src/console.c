@@ -151,11 +151,9 @@ void print_hart_status() {
     
     for (i = 0; i < NUM_HARTS; i++) {
         status = sbi_get_hart_status(i);
-        if (status == HS_INVALID) {
-            break;
+        if (status != HS_INVALID) {
+            printf("Hart %d is %s.\n", i, hartstatus_to_string(status));
         }
-
-        printf("Hart %d is %s.\n", i, hartstatus_to_string(status));
     }
 }
 

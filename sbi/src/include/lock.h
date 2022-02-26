@@ -1,3 +1,6 @@
+#pragma once
+
+
 typedef struct Mutex {
     int state;
 } Mutex;

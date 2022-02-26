@@ -7,6 +7,7 @@
 #include <printf.h>
 #include <plic.h>
 #include <clint.h>
+#include <hart.h>
 
 
 void c_trap(void) {

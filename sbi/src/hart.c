@@ -2,12 +2,14 @@
 #include <clint.h>
 #include <csr.h>
 #include <start.h>
+#include <printf.h>
+#include <lock.h>
 
 
 HartData sbi_hart_data[NUM_HARTS];
 
 
-HartStatus get_hart_status(unsigned int hart) {
+HartStatus get_hart_status(int hart) {
     if (!IS_VALID_HART(hart)) {
         return HS_INVALID;
     }
@@ -15,7 +17,7 @@ HartStatus get_hart_status(unsigned int hart) {
     return sbi_hart_data[hart].status;
 }
 
-int hart_start(unsigned int hart, unsigned long target, int priv_mode) {
+int hart_start(int hart, unsigned long target, int priv_mode) { // todo: change return to bool
     priv_mode &= 0b1;
 
     printf("Starting hart %d at 0x%08x in mode %d\n", hart, target, priv_mode);
@@ -24,19 +26,33 @@ int hart_start(unsigned int hart, unsigned long target, int priv_mode) {
         return 0;
     }
 
-    // try lock
+    if (!mutex_trylock(&sbi_hart_data[hart].lock)) {
+        return 0;
+    }
     
     sbi_hart_data[hart].status = HS_STARTING;
     sbi_hart_data[hart].target_address = target;
     sbi_hart_data[hart].priv = priv_mode;
     clint_set_msip(hart);
 
-    // unlock
-
+    mutex_unlock(&sbi_hart_data[hart].lock);
     return 1;
 }
 
-int hart_stop(unsigned int hart) {
+int hart_stop(int hart) {
+    if (!IS_VALID_HART(hart)) {
+        return 0;
+    }
+
+    if (!mutex_trylock(&sbi_hart_data[hart].lock)) {
+        return 0;
+    }
+
+    if (sbi_hart_data[hart].status != HS_STARTED) {
+        mutex_unlock(&sbi_hart_data[hart].lock);
+        return 0;
+    }
+
     sbi_hart_data[hart].status = HS_STOPPED;
     CSR_WRITE("mepc", park);
     CSR_WRITE("mstatus", MSTATUS_MPP_MACHINE | MSTATUS_MPIE);
@@ -46,17 +62,21 @@ int hart_stop(unsigned int hart) {
     CSR_WRITE("stvec", 0);
     CSR_WRITE("sepc", 0);
     CSR_WRITE("mip", 0);
+
+    mutex_unlock(&sbi_hart_data[hart].lock);
     MRET();
 
+    // In case we didn't mret
+    mutex_unlock(&sbi_hart_data[hart].lock);
     return 0;
 }
 
-void hart_handle_msip(unsigned int hart) {
+void hart_handle_msip(int hart) {
     if (!IS_VALID_HART(hart)) {
         return;
     }
     
-    // lock
+    mutex_sbi_lock(&sbi_hart_data[hart].lock);
 
     clint_unset_msip(hart);
 
@@ -73,6 +93,6 @@ void hart_handle_msip(unsigned int hart) {
         sbi_hart_data[hart].status = HS_STARTED;
     }
 
-    // unlock
+    mutex_unlock(&sbi_hart_data[hart].lock);
     MRET();
 }
