@@ -7,6 +7,7 @@
 #include <start.h>
 #include <mmu.h>
 #include <kmalloc.h>
+#include <pci.h>
 
 
 void test2() {
@@ -38,6 +39,11 @@ int main(int hart) {
 
     if (!kmalloc_init()) {
         printf("Failed to init kmalloc\n");
+        return 1;
+    }
+
+    if (!pci_init()) {
+        printf("Failed to init pci\n");
         return 1;
     }
 

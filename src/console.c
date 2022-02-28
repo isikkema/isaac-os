@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <mmu.h>
 #include <utils.h>
+#include <pci.h>
 
 
 char blocking_getchar() {
@@ -248,9 +249,8 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (argc < 2) return;
-
-    printf("{%s} => {%d}\n", args[1], atoi(args[1]));
+    pci_print();
+    sbi_poweroff();
 }
 
 void start_hart(int argc, char** args) {
