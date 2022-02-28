@@ -16,12 +16,12 @@ bool mmu_init() {
         return false;
     }
     
-    mmu_map_many(kernel_mmu_table, _TEXT_START,     _TEXT_START,    (_TEXT_END-_TEXT_START),        PB_READ | PB_EXECUTE);
-	mmu_map_many(kernel_mmu_table, _DATA_START,     _DATA_START,    (_DATA_END-_DATA_START),        PB_READ | PB_WRITE);
-	mmu_map_many(kernel_mmu_table, _RODATA_START,   _RODATA_START,  (_RODATA_END-_RODATA_START),    PB_READ);
-	mmu_map_many(kernel_mmu_table, _BSS_START,      _BSS_START,     (_BSS_END-_BSS_START),          PB_READ | PB_WRITE);
-	mmu_map_many(kernel_mmu_table, _STACK_START,    _STACK_START,   (_STACK_END-_STACK_START),      PB_READ | PB_WRITE);
-	mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE);
+    if (!mmu_map_many(kernel_mmu_table, _TEXT_START,     _TEXT_START,    (_TEXT_END-_TEXT_START),        PB_READ | PB_EXECUTE)) return false;
+	if (!mmu_map_many(kernel_mmu_table, _DATA_START,     _DATA_START,    (_DATA_END-_DATA_START),        PB_READ | PB_WRITE))   return false;
+	if (!mmu_map_many(kernel_mmu_table, _RODATA_START,   _RODATA_START,  (_RODATA_END-_RODATA_START),    PB_READ))              return false;
+	if (!mmu_map_many(kernel_mmu_table, _BSS_START,      _BSS_START,     (_BSS_END-_BSS_START),          PB_READ | PB_WRITE))   return false;
+	if (!mmu_map_many(kernel_mmu_table, _STACK_START,    _STACK_START,   (_STACK_END-_STACK_START),      PB_READ | PB_WRITE))   return false;
+	if (!mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE))   return false;
 
     CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(kernel_mmu_table));
     SFENCE();    
