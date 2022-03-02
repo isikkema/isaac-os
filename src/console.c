@@ -250,7 +250,7 @@ void cmd_print(int argc, char** args) {
 
 void test(int argc, char** args) {
     pci_print();
-    sbi_poweroff();
+    // sbi_poweroff();
 }
 
 void start_hart(int argc, char** args) {

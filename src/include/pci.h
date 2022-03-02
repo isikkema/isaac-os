@@ -13,10 +13,15 @@
         MMIO_ECAM_BASE | \
         (((uint64_t) bus        & 0x0ff) << 20) | \
         (((uint64_t) device     & 0x01f) << 15) | \
-        (((uint64_t) function   & 0x07f) << 12) | \
+        (((uint64_t) function   & 0x007) << 12) | \
         (((uint64_t) reg        & 0x3ff) << 02)   \
     ) \
 )
+
+#define PCI_HEADER_TYPE_DEVICE          (0)
+#define PCI_HEADER_TYPE_BRIDGE          (1)
+#define PCI_COMMAND_REG_MEMORY_SPACE    (1 << 1)
+#define PCI_COMMAND_REG_BUS_MASTER      (1 << 2)
 
 
 typedef struct EcamHeader {
