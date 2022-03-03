@@ -27,6 +27,7 @@ void pci_print() {
     volatile u32* bar32;
     volatile u64* bar64;
     u64 bar_size;
+    u64 device_memory_base;
 
     memset(used_buses_bitset, 0, sizeof(u64[4]));
     memset(bus_to_bridge_map, 0, sizeof(EcamHeader*[256]));
@@ -60,8 +61,6 @@ void pci_print() {
             if (ecam->header_type == PCI_HEADER_TYPE_DEVICE) {
                 ecam->command_reg = 0;
 
-                // set device mem range?
-
                 bridge = bus_to_bridge_map[bus];
 
                 if (ecam->status_reg & (1 << 4)) {
@@ -76,6 +75,12 @@ void pci_print() {
                     }
                 }
 
+                if (bridge != NULL && bridge->type1.memory_base == 0xfff0) {
+                    next_memory_base = ((next_memory_base + 0x00100000 - 1) / 0x00100000) * 0x00100000;
+                    printf("aligning next base to 0x%08x...\n", next_memory_base);
+                }
+                
+                device_memory_base = -1UL;
                 for (barid = 0; barid < 6; barid++) {
                     if ((ecam->type0.bar[barid] & 0b111) == 0b000) {
                         bar32 = ecam->type0.bar + barid;
@@ -83,11 +88,11 @@ void pci_print() {
                         *bar32 = -1;
                         bar_size = ~(*bar32 & ~0b1111) + 1;
 
-                        printf("bar32: 0x%08x\n", bar_size);
-                        printf("unaligned: 0x%08x ", next_memory_base);
-                        if (bar_size > 0)
+                        if (bar_size > 0) {
+                            printf("bar32: 0x%08x - ", next_memory_base);
                             next_memory_base = ((next_memory_base + bar_size - 1) / bar_size) * bar_size;
-                        printf("aligned: 0x%08x\n", next_memory_base);
+                            printf("0x%08x\n", next_memory_base + bar_size - 1);
+                        }
 
                         *bar32 = (u32) next_memory_base;
                     } else if ((ecam->type0.bar[barid] & 0b111) == 0b100) {
@@ -97,11 +102,11 @@ void pci_print() {
                         *bar64 = -1;
                         bar_size = ~(*bar64 & ~0b1111UL) + 1;
 
-                        printf("bar64: 0x%08x\n", bar_size);
-                        printf("unaligned: 0x%08x ", next_memory_base);
-                        if (bar_size > 0)
+                        if (bar_size > 0) {
+                            printf("bar64: 0x%08x - ", next_memory_base);
                             next_memory_base = ((next_memory_base + bar_size - 1) / bar_size) * bar_size;
-                        printf("aligned: 0x%08x\n", next_memory_base);
+                            printf("0x%08x\n", next_memory_base + bar_size - 1);
+                        }
 
                         *bar64 = next_memory_base;
                     } else {
@@ -109,27 +114,29 @@ void pci_print() {
                         continue;
                     }
 
+                    if (next_memory_base < device_memory_base) {
+                        device_memory_base = next_memory_base;
+                    }
+
                     next_memory_base += bar_size;
                 }
 
                 ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE;
 
-                // if (bridge != NULL) {
-                //     if (bridge->type1.memory_base == 0xfff0) {
-                //         bridge->type1.memory_base = next_memory_base;
-                //         bridge->type1.memory_limit = next_memory_base + 0x00ff;
-                //     } else {
-                //         bridge->type1.memory_limit += 0x0100;
-                //     }
+                if (bridge != NULL) {
+                    if (bridge->type1.memory_base == 0xfff0) {
+                        bridge->type1.memory_base = device_memory_base >> 16;
+                        bridge->type1.prefetch_memory_base = device_memory_base >> 16;
+                    }
 
-                //     next_memory_base += 0x0100;
-                // }
+                    bridge->type1.memory_limit = (next_memory_base - 1) >> 16;
+                    bridge->type1.prefetch_memory_limit = (next_memory_base - 1) >> 16;
+
+                    printf("Setting bridge range to 0x%04x - 0x%03xf\n", bridge->type1.memory_base, bridge->type1.memory_limit >> 4);
+                }
             } else if (ecam->header_type == PCI_HEADER_TYPE_BRIDGE) {
                 ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE | PCI_COMMAND_REG_BUS_MASTER;
 
-                printf("0x%04x -> 0x%04x\n", ecam->type1.memory_base, ecam->type1.memory_limit);
-                printf("0x%04x -> 0x%04x\n", ecam->type1.prefetch_memory_base, ecam->type1.prefetch_memory_limit);
-        
                 while (next_free_bus_no < 256 && (next_free_bus_no <= bus || ((used_buses_bitset[next_free_bus_no / sizeof(u64)] >> (next_free_bus_no % sizeof(u64))) & 0b1))) {
                     printf("Skipping bus %d...\n", next_free_bus_no);
                     next_free_bus_no++;
