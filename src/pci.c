@@ -102,12 +102,36 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
     return memory_base;
 }
 
+u32 pci_setup_bridge(volatile EcamHeader* bridge_ecam, u32 bridge_bus, u32 free_bus_no, u64 used_buses_bitset[], volatile EcamHeader* bus_to_bridge_map[]) {
+    bridge_ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE | PCI_COMMAND_REG_BUS_MASTER;
+
+    while (free_bus_no < 256 && (free_bus_no <= bridge_bus || ((used_buses_bitset[free_bus_no / sizeof(u64)] >> (free_bus_no % sizeof(u64))) & 0b1))) {
+        printf("Skipping bus %d...\n", free_bus_no);
+        free_bus_no++;
+    }
+
+    if (free_bus_no >= 256) {
+        printf("pci_discover: no more available buses\n");
+        return -1;
+    }
+
+    bridge_ecam->type1.primary_bus_no = bridge_bus;
+    bridge_ecam->type1.secondary_bus_no = free_bus_no;
+    bridge_ecam->type1.subordinate_bus_no = free_bus_no;
+
+    bus_to_bridge_map[free_bus_no] = bridge_ecam;
+
+    used_buses_bitset[free_bus_no / sizeof(u64)] |= 1UL << (free_bus_no % sizeof(u64));
+
+    return free_bus_no + 1;
+}
+
 bool pci_discover() {
     int bus;
     int slot;
     volatile EcamHeader* ecam;
     u64 used_buses_bitset[4];
-    int next_free_bus_no;
+    int free_bus_no;
     volatile EcamHeader* bus_to_bridge_map[256];
     u64 next_memory_base;    
 
@@ -129,7 +153,7 @@ bool pci_discover() {
         }
     }
 
-    next_free_bus_no = 0;
+    free_bus_no = 0;
     next_memory_base = 0x40000000;
     for (bus = 0; bus < 256; bus++) {
         for (slot = 0; slot < 32; slot++) {
@@ -146,25 +170,10 @@ bool pci_discover() {
                     return false;
                 }
             } else if (ecam->header_type == PCI_HEADER_TYPE_BRIDGE) {
-                ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE | PCI_COMMAND_REG_BUS_MASTER;
-
-                while (next_free_bus_no < 256 && (next_free_bus_no <= bus || ((used_buses_bitset[next_free_bus_no / sizeof(u64)] >> (next_free_bus_no % sizeof(u64))) & 0b1))) {
-                    printf("Skipping bus %d...\n", next_free_bus_no);
-                    next_free_bus_no++;
-                }
-
-                if (next_free_bus_no >= 256) {
-                    printf("pci_discover: no more available buses\n");
+                free_bus_no = pci_setup_bridge(ecam, bus, free_bus_no, used_buses_bitset, bus_to_bridge_map);
+                if (free_bus_no == -1) {
                     return false;
                 }
-
-                ecam->type1.primary_bus_no = bus;
-                ecam->type1.secondary_bus_no = next_free_bus_no;
-                ecam->type1.subordinate_bus_no = next_free_bus_no;
-
-                bus_to_bridge_map[next_free_bus_no] = ecam;
-
-                used_buses_bitset[next_free_bus_no / sizeof(u64)] |= 1UL << (next_free_bus_no % sizeof(u64));
             } else {
                 printf("pci_discover: unsupported header type: %d\n", ecam->header_type);
                 return false;
