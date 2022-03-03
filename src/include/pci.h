@@ -100,4 +100,6 @@ typedef struct Capability {
 
 
 bool pci_init();
+bool pci_discover();
+
 void pci_print();
