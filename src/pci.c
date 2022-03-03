@@ -22,7 +22,12 @@ void pci_print() {
     volatile EcamHeader* bus_to_bridge_map[256];
     u16 next_memory_base;
     volatile EcamHeader* bridge;
-    
+    volatile Capability* cap;
+    int barid;
+    volatile u32* bar32;
+    volatile u64* bar64;
+    u64 bar_size;
+
     memset(used_buses_bitset, 0, sizeof(u64[4]));
     memset(bus_to_bridge_map, 0, sizeof(EcamHeader*[256]));
 
@@ -53,11 +58,52 @@ void pci_print() {
             printf("Device at %08x: { bus: %d, slot: %d, device_id: %04x, vendor_id: %04x, type: %d }\n", (uint64_t) ecam, bus, slot, ecam->device_id, ecam->vendor_id, ecam->header_type);
 
             if (ecam->header_type == PCI_HEADER_TYPE_DEVICE) {
-                ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE;
+                ecam->command_reg = 0;
 
                 // set device mem range?
 
                 bridge = bus_to_bridge_map[bus];
+
+                if (ecam->status_reg & (1 << 4)) {
+                    cap = (Capability*) ((u64) ecam + ecam->type0.capes_pointer);
+                    while (true) {
+                        printf("Capability { id: 0x%02x, next_offset: 0x%02x }\n", cap->id, cap->next_offset);
+                        if (cap->next_offset == 0) {
+                            break;
+                        }
+
+                        cap = (Capability*) ((u64) ecam + cap->next_offset);
+                    }
+                }
+
+                for (barid = 0; barid < 6; barid++) {
+                    if ((ecam->type0.bar[barid] & 0b111) == 0b000) {
+                        bar32 = ecam->type0.bar + barid;
+                        
+                        *bar32 = -1;
+                        bar_size = ~(*bar32 & ~0b1111) + 1;
+
+                        printf("bar32: ");
+                    } else if ((ecam->type0.bar[barid] & 0b111) == 0b100) {
+                        bar64 = (u64*) (ecam->type0.bar + barid);
+                        barid++;
+
+                        *bar64 = -1;
+                        bar_size = ~(*bar64 & ~0b1111UL) + 1;
+
+                        printf("bar64: ");
+                    } else {
+                        printf("unsupported bar\n");
+                        continue;
+                    }
+
+                    
+
+                    printf("0x%08x\n", bar_size);
+                }
+
+                ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE;
+
                 if (bridge != NULL) {
                     if (bridge->type1.memory_base == 0xfff0) {
                         bridge->type1.memory_base = next_memory_base;

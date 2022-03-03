@@ -93,6 +93,11 @@ typedef struct EcamHeader {
     };
 } EcamHeader;
 
+typedef struct Capability {
+    uint8_t id;
+    uint8_t next_offset;
+} Capability;
+
 
 bool pci_init();
 void pci_print();
