@@ -5,8 +5,9 @@
 #include <stdbool.h>
 
 
-#define MMIO_ECAM_BASE      (0x30000000)
-#define PCI_INVALID_VENDOR  (0xffff)
+#define MMIO_ECAM_BASE          (0x30000000)
+#define PCI_MMIO_DEVICE_BASE    (0x40000000)
+#define PCI_INVALID_VENDOR      (0xffff)
 
 #define PCIE_GET_ECAM(bus, device, function, reg) ( \
     (volatile EcamHeader*) ( \
@@ -22,6 +23,13 @@
 #define PCI_HEADER_TYPE_BRIDGE          (1)
 #define PCI_COMMAND_REG_MEMORY_SPACE    (1 << 1)
 #define PCI_COMMAND_REG_BUS_MASTER      (1 << 2)
+#define PCI_STATUS_REG_CAPABILITIES     (1 << 4)
+#define PCI_BRIDGE_MEMORY_UNINITIALIZED (0xfff0)
+#define PCI_BRIDGE_MEMORY_ALIGNMENT     (0x00100000)
+#define PCI_BAR_32_BITS                 (0b000)
+#define PCI_BAR_64_BITS                 (0b100)
+#define PCI_NUM_BUSES                   (256)
+#define PCI_NUM_SLOTS                   (32)
 
 
 typedef struct EcamHeader {

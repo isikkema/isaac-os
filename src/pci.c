@@ -10,11 +10,23 @@ bool pci_init() {
         return false;
     }
 
+    if (!mmu_map_many(kernel_mmu_table, PCI_MMIO_DEVICE_BASE, PCI_MMIO_DEVICE_BASE, 0x10000000, PB_READ | PB_WRITE)) {
+        return false;
+    }
+
     if (!pci_discover()) {
         return false;
     }
 
     return true;
+}
+
+void bitset_insert(u64 bitset[], u8 val) {
+    bitset[val / sizeof(u64)] |= 1UL << (val % sizeof(u64));
+}
+
+bool bitset_find(u64 bitset[], u8 val) {
+    return (bitset[val / sizeof(u64)] >> (val % sizeof(u64))) & 0b1;
 }
 
 u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* bridge_ecam, u64 memory_base) {
@@ -29,7 +41,7 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
     device_ecam->command_reg = 0;
 
     // Iterate through the capabilities if enabled
-    if (device_ecam->status_reg & (1 << 4)) {
+    if (device_ecam->status_reg & PCI_STATUS_REG_CAPABILITIES) {
         cap = (Capability*) ((u64) device_ecam + device_ecam->type0.capes_pointer);
         while (true) {
             if (cap->next_offset == 0) {
@@ -41,14 +53,14 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
     }
 
     // If we're at a new bridge, align the memory base to 0xXXX0_0000
-    if (bridge_ecam != NULL && bridge_ecam->type1.memory_base == 0xfff0) {
-        memory_base = ((memory_base + 0x00100000 - 1) / 0x00100000) * 0x00100000;
+    if (bridge_ecam != NULL && bridge_ecam->type1.memory_base == PCI_BRIDGE_MEMORY_UNINITIALIZED) {
+        memory_base = ((memory_base + PCI_BRIDGE_MEMORY_ALIGNMENT - 1) / PCI_BRIDGE_MEMORY_ALIGNMENT) * PCI_BRIDGE_MEMORY_ALIGNMENT;
     }
     
     // Setup BARs
     device_memory_base = -1UL;
     for (barid = 0; barid < 6; barid++) {
-        if ((device_ecam->type0.bar[barid] & 0b111) == 0b000) {
+        if ((device_ecam->type0.bar[barid] & 0b111) == PCI_BAR_32_BITS) {
             // Bar is 32 bits
 
             // 32 bit ptr
@@ -65,7 +77,7 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
 
             // Set BAR
             *bar32 = (u32) memory_base;
-        } else if ((device_ecam->type0.bar[barid] & 0b111) == 0b100) {
+        } else if ((device_ecam->type0.bar[barid] & 0b111) == PCI_BAR_64_BITS) {
             // Bar is 64 bits
 
             // 64 bit ptr
@@ -99,7 +111,7 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
 
     if (bridge_ecam != NULL) {
         // If we haven't yet, set this device's bridge's memory_base
-        if (bridge_ecam->type1.memory_base == 0xfff0) {
+        if (bridge_ecam->type1.memory_base == PCI_BRIDGE_MEMORY_UNINITIALIZED) {
             bridge_ecam->type1.memory_base = device_memory_base >> 16;
             bridge_ecam->type1.prefetch_memory_base = device_memory_base >> 16;
         }
@@ -116,11 +128,11 @@ u32 pci_setup_bridge(volatile EcamHeader* bridge_ecam, u32 bridge_bus, u32 free_
     bridge_ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE | PCI_COMMAND_REG_BUS_MASTER;
 
     // Find next bus which is between the current bus and 256 and isn't already being used
-    while (free_bus_no < 256 && (free_bus_no <= bridge_bus || ((used_buses_bitset[free_bus_no / sizeof(u64)] >> (free_bus_no % sizeof(u64))) & 0b1))) {
+    while (free_bus_no < PCI_NUM_BUSES && (free_bus_no <= bridge_bus || bitset_find(used_buses_bitset, free_bus_no))) {
         free_bus_no++;
     }
 
-    if (free_bus_no >= 256) {
+    if (free_bus_no >= PCI_NUM_BUSES) {
         printf("pci_discover: no more available buses\n");
         return -1;
     }
@@ -133,7 +145,7 @@ u32 pci_setup_bridge(volatile EcamHeader* bridge_ecam, u32 bridge_bus, u32 free_
     bus_to_bridge_map[free_bus_no] = bridge_ecam;
 
     // Set secondary bus as used
-    used_buses_bitset[free_bus_no / sizeof(u64)] |= 1UL << (free_bus_no % sizeof(u64));
+    bitset_insert(used_buses_bitset, free_bus_no);
 
     return free_bus_no + 1;
 }
@@ -143,23 +155,23 @@ bool pci_discover() {
     int slot;
     u32 free_bus_no;
     u64 memory_base;    
-    u64 used_buses_bitset[4];
+    u64 used_buses_bitset[PCI_NUM_BUSES / 64];
     volatile EcamHeader* ecam;
-    volatile EcamHeader* bus_to_bridge_map[256];
+    volatile EcamHeader* bus_to_bridge_map[PCI_NUM_BUSES];
 
-    memset(used_buses_bitset, 0, sizeof(u64[4]));
-    memset(bus_to_bridge_map, 0, sizeof(EcamHeader*[256]));
+    memset(used_buses_bitset, 0, sizeof(u64[PCI_NUM_BUSES / 64]));
+    memset(bus_to_bridge_map, 0, sizeof(EcamHeader*[PCI_NUM_BUSES]));
 
     // Find all used buses
-    for (bus = 0; bus < 256; bus++) {
-        for (slot = 0; slot < 32; slot++) {
+    for (bus = 0; bus < PCI_NUM_BUSES; bus++) {
+        for (slot = 0; slot < PCI_NUM_SLOTS; slot++) {
             ecam = PCIE_GET_ECAM(bus, slot, 0, 0);
             if (ecam->vendor_id == PCI_INVALID_VENDOR) {
                 continue;
             }
 
             // Set bus as used
-            used_buses_bitset[bus / sizeof(u64)] |= 1UL << (bus % sizeof(u64));
+            bitset_insert(used_buses_bitset, bus);
 
             break;
         }
@@ -167,9 +179,9 @@ bool pci_discover() {
 
     // Setup all devices and bridges
     free_bus_no = 0;
-    memory_base = 0x40000000;
-    for (bus = 0; bus < 256; bus++) {
-        for (slot = 0; slot < 32; slot++) {
+    memory_base = PCI_MMIO_DEVICE_BASE;
+    for (bus = 0; bus < PCI_NUM_BUSES; bus++) {
+        for (slot = 0; slot < PCI_NUM_SLOTS; slot++) {
             ecam = PCIE_GET_ECAM(bus, slot, 0, 0);
             if (ecam->vendor_id == PCI_INVALID_VENDOR) {
                 continue;
@@ -182,7 +194,7 @@ bool pci_discover() {
                 }
             } else if (ecam->header_type == PCI_HEADER_TYPE_BRIDGE) {
                 free_bus_no = pci_setup_bridge(ecam, bus, free_bus_no, used_buses_bitset, bus_to_bridge_map);
-                if (free_bus_no == -1) {
+                if (free_bus_no == -1U) {
                     return false;
                 }
             } else {
