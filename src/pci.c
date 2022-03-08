@@ -3,6 +3,7 @@
 #include <mmu.h>
 #include <rs_int.h>
 #include <string.h>
+#include <virtio.h>
 
 
 bool pci_init() {
@@ -46,6 +47,23 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
         while (true) {
             if (cap->next_offset == 0) {
                 break;
+            }
+
+            switch (cap->id) {
+                case 0x09:
+                    if (!virtio_setup_capability((VirtioPciCapability*) cap)) {
+                        printf("pci_setup_device: failed to setup virtio capability at 0x%08x\n", (u64) cap);
+                        return -1UL;
+                    }
+                    break;
+                
+                case 0x11:
+                    printf("pci_setup_device: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
+                    break;
+                
+                default:
+                    printf("pci_setup_device: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
+                    return -1UL;
             }
 
             cap = (Capability*) ((u64) device_ecam + cap->next_offset);
