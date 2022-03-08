@@ -30,6 +30,27 @@ bool bitset_find(u64 bitset[], u8 val) {
     return (bitset[val / sizeof(u64)] >> (val % sizeof(u64))) & 0b1;
 }
 
+uint64_t pci_read_bar(volatile EcamHeader* ecam, uint8_t barid) {
+    u64 bar_val;
+
+    if ((ecam->type0.bar[barid] & 0b111) == PCI_BAR_32_BITS) {
+        // Bar is 32 bits
+
+        // 32 bit ptr
+        bar_val = (u64) ecam->type0.bar[barid];
+    } else if ((ecam->type0.bar[barid] & 0b111) == PCI_BAR_64_BITS) {
+        // Bar is 64 bits
+
+        // 64 bit ptr
+        bar_val = *((u64*) (ecam->type0.bar + barid));
+    } else {
+        printf("pci_setup_device: unsupported bar\n");
+        return -1UL;
+    }
+
+    return bar_val & ~0b1111UL;
+}
+
 u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* bridge_ecam, u64 memory_base) {
     u32 barid;
     u64 bar_size;
@@ -40,35 +61,6 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
 
     // Disable BARs
     device_ecam->command_reg = 0;
-
-    // Iterate through the capabilities if enabled
-    if (device_ecam->status_reg & PCI_STATUS_REG_CAPABILITIES) {
-        cap = (Capability*) ((u64) device_ecam + device_ecam->type0.capes_pointer);
-        while (true) {
-            if (cap->next_offset == 0) {
-                break;
-            }
-
-            switch (cap->id) {
-                case 0x09:
-                    if (!virtio_setup_capability((VirtioPciCapability*) cap)) {
-                        printf("pci_setup_device: failed to setup virtio capability at 0x%08x\n", (u64) cap);
-                        return -1UL;
-                    }
-                    break;
-                
-                case 0x11:
-                    printf("pci_setup_device: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-                    break;
-                
-                default:
-                    printf("pci_setup_device: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-                    return -1UL;
-            }
-
-            cap = (Capability*) ((u64) device_ecam + cap->next_offset);
-        }
-    }
 
     // If we're at a new bridge, align the memory base to 0xXXX0_0000
     if (bridge_ecam != NULL && bridge_ecam->type1.memory_base == PCI_BRIDGE_MEMORY_UNINITIALIZED) {
@@ -137,6 +129,35 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
         // and increase its memory_limit
         bridge_ecam->type1.memory_limit = (memory_base - 1) >> 16;
         bridge_ecam->type1.prefetch_memory_limit = (memory_base - 1) >> 16;
+    }
+
+    // Iterate through the capabilities if enabled
+    if (device_ecam->status_reg & PCI_STATUS_REG_CAPABILITIES) {
+        cap = (Capability*) ((u64) device_ecam + device_ecam->type0.capes_pointer);
+        while (true) {
+            if (cap->next_offset == 0) {
+                break;
+            }
+
+            switch (cap->id) {
+                case 0x09:
+                    if (!virtio_setup_capability(device_ecam, (VirtioPciCapability*) cap)) {
+                        printf("pci_setup_device: failed to setup virtio capability at 0x%08x\n", (u64) cap);
+                        return -1UL;
+                    }
+                    break;
+                
+                case 0x11:
+                    printf("pci_setup_device: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
+                    break;
+                
+                default:
+                    printf("pci_setup_device: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
+                    return -1UL;
+            }
+
+            cap = (Capability*) ((u64) device_ecam + cap->next_offset);
+        }
     }
 
     return memory_base;
