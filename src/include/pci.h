@@ -108,6 +108,7 @@ typedef struct Capability {
 
 
 bool pci_init();
+uint64_t pci_read_bar(volatile EcamHeader* ecam, uint8_t barid);
 bool pci_discover();
 
 void pci_print();

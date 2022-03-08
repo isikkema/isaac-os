@@ -8,7 +8,7 @@
 #define VIRTIO_PCI_CAP_CFG_TYPE_COMMON      (1)
 #define VIRTIO_PCI_CAP_CFG_TYPE_NOTIFY      (2)
 #define VIRTIO_PCI_CAP_CFG_TYPE_ISR         (3)
-
+#define VIRTIO_PCI_CAP_CFG_TYPE_DEVICE      (4)
 #define VIRTIO_PCI_CAP_CFG_TYPE_COMMON_ALT  (5)
 
 
@@ -43,5 +43,5 @@ typedef struct virtio_pci_cfg_common {
    u64 queue_device;
 } VirtioPciCfgCommon;
 
-bool virtio_setup_capability(volatile VirtioPciCapability* cap);
-bool virtio_setup_cap_common(volatile VirtioPciCapability* cap);
+bool virtio_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_setup_cap_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
