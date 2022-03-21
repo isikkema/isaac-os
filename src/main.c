@@ -53,11 +53,8 @@ int main(int hart) {
 
     printf("a: 0x%016lx\n", *a);
 
-    if (!rng_fill(a, sizeof(u64))) {
-        printf("rng failed\n");
-    } else {
-        WFI();
-    }
+    rng_fill(a, sizeof(u64));
+    WFI();
 
     printf("a: 0x%016lx\n", *a);
 
