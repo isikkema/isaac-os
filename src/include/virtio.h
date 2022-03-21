@@ -94,7 +94,7 @@ typedef struct virt_queue_used {
    // u16 avail_event; /* Only if VIRTIO_F_EVENT_IDX */
 } VirtQueueUsed;
 
-typedef struct virtio_rng_device {
+typedef struct virtio_device {
    VirtQueueDescriptor* queue_desc;
    VirtQueueAvailable* queue_driver;
    VirtQueueUsed* queue_device;
@@ -105,15 +105,12 @@ typedef struct virtio_rng_device {
    u16 at_idx;
    u16 ack_idx;
    bool enabled;
-} VirtioRngDevice;
+} VirtioDevice;
 
 
-extern VirtioRngDevice virtio_rng_device;
+// bool virtio_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+// bool virtio_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+// bool virtio_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+// bool virtio_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
-
-bool virtio_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-
-bool rng_fill(void *buffer, u16 size);
+// bool rng_fill(void *buffer, u16 size);

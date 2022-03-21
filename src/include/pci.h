@@ -106,9 +106,24 @@ typedef struct Capability {
     uint8_t next_offset;
 } Capability;
 
+typedef struct Driver {
+    uint16_t vendor_id;
+    uint16_t device_id;
+    bool (*driver_func)(volatile EcamHeader* ecam);
+} Driver;
+
+typedef struct DriverList {
+    struct DriverList* next;
+    Driver* driver;
+} DriverList;
+
 
 bool pci_init();
 uint64_t pci_read_bar(volatile EcamHeader* ecam, uint8_t barid);
 bool pci_discover();
+
+Driver* pci_find_driver(uint16_t vendor_id, uint16_t device_id);
+bool pci_register_driver(uint16_t vendor_id, uint16_t device_id, bool (*driver_func)(volatile EcamHeader* ecam));
+bool pci_init_drivers();
 
 void pci_print();

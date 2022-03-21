@@ -8,7 +8,7 @@
 #include <mmu.h>
 #include <kmalloc.h>
 #include <pci.h>
-#include <virtio.h>
+#include <rng.h>
 
 
 void test2() {
