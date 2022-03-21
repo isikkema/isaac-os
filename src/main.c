@@ -8,6 +8,7 @@
 #include <mmu.h>
 #include <kmalloc.h>
 #include <pci.h>
+#include <virtio.h>
 
 
 void test2() {
@@ -47,9 +48,22 @@ int main(int hart) {
         return 1;
     }
 
+
+    u64* a = kzalloc(sizeof(u64));
+
+    printf("a: 0x%016lx\n", *a);
+
+    if (!rng_fill(a, sizeof(u64))) {
+        printf("rng failed\n");
+    } else {
+        WFI();
+    }
+
+    printf("a: 0x%016lx\n", *a);
+
     // todo: add help, malloc, and free commands
     //       also improve hart starting/stopping
-    run_console();
+    // run_console();
     sbi_poweroff();
     
     return 0;

@@ -148,6 +148,7 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
                     break;
                 
                 case 0x11:
+                case 0x01:
                     printf("pci_setup_device: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
                     break;
                 

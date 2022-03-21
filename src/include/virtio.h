@@ -25,6 +25,10 @@
 
 #define VIRT_QUEUE_USED_FLAG_NO_NOTIFY (1)
 
+#define VIRTIO_OUR_PREFERRED_QUEUE_SIZE   (1024)
+
+#define BAR_NOTIFY_CAP(offset, queue_notify_off, notify_off_multiplier) ((offset) + (queue_notify_off) * (notify_off_multiplier))
+
 
 typedef struct virtio_pci_cap {
    u8 cap_vndr;
@@ -57,6 +61,13 @@ typedef struct virtio_pci_cfg_common {
    u64 queue_device;
 } VirtioPciCfgCommon;
 
+typedef struct virtio_pci_notify_cap {
+   VirtioPciCapability cap;
+   u32 notify_off_multiplier;
+} VirtioNotifyCapability;
+
+typedef u32 VirtioISRCapability;
+
 typedef struct virt_queue_descriptor {
    u64 addr;
    u32 len;
@@ -88,6 +99,12 @@ typedef struct virtio_rng_device {
    VirtQueueAvailable* queue_driver;
    VirtQueueUsed* queue_device;
    volatile VirtioPciCfgCommon* cfg;
+   volatile VirtioNotifyCapability* notify;
+   volatile VirtioISRCapability* isr;
+   u64 base_notify_offset;
+   u16 at_idx;
+   u16 ack_idx;
+   bool enabled;
 } VirtioRngDevice;
 
 
@@ -96,3 +113,7 @@ extern VirtioRngDevice virtio_rng_device;
 
 bool virtio_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 bool virtio_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+
+bool rng_fill(void *buffer, u16 size);
