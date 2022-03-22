@@ -106,11 +106,3 @@ typedef struct virtio_device {
    u16 ack_idx;
    bool enabled;
 } VirtioDevice;
-
-
-// bool virtio_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-// bool virtio_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-// bool virtio_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-// bool virtio_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-
-// bool rng_fill(void *buffer, u16 size);

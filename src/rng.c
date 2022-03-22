@@ -27,14 +27,8 @@ bool virtio_rng_driver(volatile EcamHeader* ecam) {
                     }
                     break;
                 
-                case 0x11:
-                case 0x01:
-                    printf("virtio_rng_driver: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-                    break;
-                
                 default:
                     printf("virtio_rng_driver: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-                    return false;
             }
 
             cap = (Capability*) ((u64) ecam + cap->next_offset);
@@ -105,6 +99,7 @@ bool virtio_rng_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
         return false;
     }
 
+    // Negotiate queue size
     cfg->queue_select = 0;
     cfg->queue_size = VIRTIO_OUR_PREFERRED_QUEUE_SIZE;
     queue_size = cfg->queue_size;
@@ -118,6 +113,7 @@ bool virtio_rng_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
         return false;
     }
 
+    // Allocate queues
     virtio_rng_device.queue_desc = kzalloc(queue_size * sizeof(VirtQueueDescriptor));
     cfg->queue_desc = mmu_translate(kernel_mmu_table, (u64) virtio_rng_device.queue_desc);
 
@@ -127,6 +123,7 @@ bool virtio_rng_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
     virtio_rng_device.queue_device = kzalloc(sizeof(VirtQueueUsed) + sizeof(u16) + queue_size * sizeof(VirtQueueUsedElement));
     cfg->queue_device = mmu_translate(kernel_mmu_table, (u64) virtio_rng_device.queue_device);
 
+    // Enable device
     cfg->queue_enable = 1;
     cfg->device_status |= VIRTIO_DEVICE_STATUS_DRIVER_OK;
     if (!(cfg->device_status | VIRTIO_DEVICE_STATUS_DRIVER_OK)) {
@@ -134,6 +131,7 @@ bool virtio_rng_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
         return false;
     }
 
+    // Store config in device struct
     virtio_rng_device.cfg = cfg;
     virtio_rng_device.enabled = true;
 
@@ -143,8 +141,8 @@ bool virtio_rng_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
 bool virtio_rng_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap) {
     virtio_rng_device.notify = (VirtioNotifyCapability*) cap;
 
+    // Store notify offset
     virtio_rng_device.base_notify_offset = pci_read_bar(ecam, cap->bar) + cap->offset;
-    printf("virtio_rng_setup_cap_cfg_notify: notify offset multiplier: %d\n", virtio_rng_device.notify->notify_off_multiplier);
 
     return true;
 }
@@ -159,30 +157,34 @@ bool virtio_rng_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciC
     return true;
 }
 
+
 bool rng_fill(void* buffer, u16 size) {
     u64 phys_addr;
     u32 at_idx;
-    u32 mod;
+    u32 queue_size;
 
     if (!virtio_rng_device.enabled) {
         return false;
     }
 
     at_idx = virtio_rng_device.at_idx;
-    mod = virtio_rng_device.cfg->queue_size;
-
+    queue_size = virtio_rng_device.cfg->queue_size;
     phys_addr = mmu_translate(kernel_mmu_table, (u64) buffer);
 
+    // Add descriptor to queue
     virtio_rng_device.queue_desc[at_idx].addr = phys_addr;
     virtio_rng_device.queue_desc[at_idx].len = size;
     virtio_rng_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
     virtio_rng_device.queue_desc[at_idx].next = 0;
 
-    virtio_rng_device.queue_driver->ring[virtio_rng_device.queue_driver->idx % mod] = at_idx;
+    // Add descriptor to driver ring
+    virtio_rng_device.queue_driver->ring[virtio_rng_device.queue_driver->idx % queue_size] = at_idx;
 
+    // Increment indices
     virtio_rng_device.queue_driver->idx += 1;
-    virtio_rng_device.at_idx = (virtio_rng_device.at_idx + 1) % mod;
+    virtio_rng_device.at_idx = (virtio_rng_device.at_idx + 1) % queue_size;
 
+    // Notify
     *((u32*) BAR_NOTIFY_CAP(virtio_rng_device.base_notify_offset, virtio_rng_device.cfg->queue_notify_off, virtio_rng_device.notify->notify_off_multiplier)) = 0;
 
     return true;

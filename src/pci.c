@@ -66,7 +66,6 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
     u64 device_memory_base;
     volatile u32* bar32;
     volatile u64* bar64;
-    volatile Capability* cap;
     Driver* driver;
 
     // Disable BARs
@@ -141,47 +140,11 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
         bridge_ecam->type1.prefetch_memory_limit = (memory_base - 1) >> 16;
     }
 
-    // // Iterate through the capabilities if enabled
-    // if (device_ecam->status_reg & PCI_STATUS_REG_CAPABILITIES) {
-    //     cap = (Capability*) ((u64) device_ecam + device_ecam->type0.capes_pointer);
-    //     while (true) {
-    //         if (cap->next_offset == 0) {
-    //             break;
-    //         }
-
-    //         switch (cap->id) {
-    //             case 0x09:
-    //                 if (!virtio_setup_capability(device_ecam, (VirtioPciCapability*) cap)) {
-    //                     printf("pci_setup_device: failed to setup virtio capability at 0x%08x\n", (u64) cap);
-    //                     return -1UL;
-    //                 }
-    //                 break;
-                
-    //             case 0x11:
-    //             case 0x01:
-    //                 printf("pci_setup_device: ignoring capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-    //                 break;
-                
-    //             default:
-    //                 printf("pci_setup_device: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
-    //                 return -1UL;
-    //         }
-
-    //         cap = (Capability*) ((u64) device_ecam + cap->next_offset);
-    //     }
-    // }
-
-    // Get driver
-
-    // Run driver, passing in device_ecam
-
+    // Get and run driver
     driver = pci_find_driver(device_ecam->vendor_id, device_ecam->device_id);
     if (driver == NULL) {
         printf("pci_setup_device: driver not found for vendor_id: 0x%04x and device_id: 0x%04x\n", device_ecam->vendor_id, device_ecam->device_id);
-        // return -1UL;
-    }
-    else
-    if (!driver->driver_func(device_ecam)) {
+    } else if (!driver->driver_func(device_ecam)) {
         printf("pci_setup_device: driver failed for vendor_id: 0x%04x and device_id: 0x%04x\n", device_ecam->vendor_id, device_ecam->device_id);
         return -1UL;
     }
@@ -275,7 +238,7 @@ bool pci_discover() {
 Driver* pci_find_driver(uint16_t vendor_id, uint16_t device_id) {
     DriverList* it;
 
-    for (it = &driver_head; it != NULL; it = it->next) {
+    for (it = driver_head; it != NULL; it = it->next) {
         if (it->driver != NULL && it->driver->vendor_id == vendor_id && it->driver->device_id == device_id) {
             return it->driver;
         }
@@ -309,6 +272,7 @@ bool pci_register_driver(uint16_t vendor_id, uint16_t device_id, bool (*driver_f
 bool pci_init_drivers() {
     driver_head = NULL;
 
+    // rng
     if (!pci_register_driver(0x1af4, 0x1044, virtio_rng_driver)) {
         return false;
     }
