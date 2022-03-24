@@ -50,7 +50,7 @@ int main(int hart) {
         return 1;
     }
 
-    if (!plic_init()) {
+    if (!plic_init(hart)) {
         printf("Failed to init plic\n");
         return 1;
     }

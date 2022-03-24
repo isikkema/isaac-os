@@ -44,6 +44,6 @@ void plic_enable(int hart, int interrupt_id);
 void plic_disable(int hart, int interrupt_id);
 uint32_t plic_claim(int hart);
 void plic_complete(int hart, int id);
-bool plic_init();
+bool plic_init(int hart);
 
 void plic_handle_irq(int hart);

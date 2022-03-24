@@ -41,7 +41,11 @@ int main(int hartid) {
 
         barrier_release(&barrier);  // Allow other harts through barrier
 
-        plic_init();
+        if (!plic_init(hartid)) {
+            printf("SBI: failed to init plic\n");
+            park();
+        }
+
         pmp_init();
 
         sbi_hart_data[hartid].status = HS_STARTED;

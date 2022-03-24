@@ -3,6 +3,7 @@
 #include <virtio.h>
 #include <printf.h>
 #include <csr.h>
+#include <hart.h>
 
 
 void plic_set_priority(int interrupt_id, char priority) {
@@ -35,17 +36,21 @@ void plic_complete(int hart, int id) {
     *base = id;
 }
 
-bool plic_init() {
+bool plic_init(int hart) {
+    if (!IS_VALID_HART(hart)) {
+        return false;
+    }
+    
     if (!mmu_map_many(kernel_mmu_table, PLIC_BASE, PLIC_BASE, 0x00300000UL, PB_READ | PB_WRITE)) {
         return false;
     }
 
-    plic_set_threshold(0, 0);
+    plic_set_threshold(hart, 0);
 
-    plic_enable(0, PLIC_PCIA);
-    plic_enable(0, PLIC_PCIB);
-    plic_enable(0, PLIC_PCIC);
-    plic_enable(0, PLIC_PCID);
+    plic_enable(hart, PLIC_PCIA);
+    plic_enable(hart, PLIC_PCIB);
+    plic_enable(hart, PLIC_PCIC);
+    plic_enable(hart, PLIC_PCID);
     plic_set_priority(PLIC_PCIA, 7);
     plic_set_priority(PLIC_PCIB, 7);
     plic_set_priority(PLIC_PCIC, 7);
