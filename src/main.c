@@ -52,7 +52,10 @@ int main(int hart) {
         return 1;
     }
 
-    plic_init();
+    if (!plic_init()) {
+        printf("Failed to init plic\n");
+        return 1;
+    }
 
     CSR_WRITE("sscratch", OS_GPREGS);
 

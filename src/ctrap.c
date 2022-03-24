@@ -15,7 +15,6 @@ void c_trap(void) {
     CSR_READ(sepc, "sepc");
 
     hart = sbi_whoami();
-    printf("hart: %d\n", hart);
 
     is_async = MCAUSE_IS_ASYNC(scause);
     scause = MCAUSE_NUM(scause);

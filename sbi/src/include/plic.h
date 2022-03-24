@@ -2,6 +2,7 @@
 
 
 #include <stdint.h>
+#include <stdbool.h>
 
 
 #define PLIC_BASE           0x0c000000UL
@@ -43,5 +44,6 @@ void plic_enable(int hart, int interrupt_id);
 void plic_disable(int hart, int interrupt_id);
 uint32_t plic_claim(int hart);
 void plic_complete(int hart, int id);
-void plic_init();
+bool plic_init();
+
 void plic_handle_irq(int hart);

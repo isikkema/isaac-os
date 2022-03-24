@@ -35,21 +35,23 @@ void plic_complete(int hart, int id) {
     *base = id;
 }
 
-void plic_init() {
-    if (mmu_map_many(kernel_mmu_table, PLIC_BASE, PLIC_BASE, 0x00300000UL, PB_READ | PB_WRITE)) {
-        plic_set_threshold(0, 0);
-
-        plic_enable(0, PLIC_PCIA);
-        plic_enable(0, PLIC_PCIB);
-        plic_enable(0, PLIC_PCIC);
-        plic_enable(0, PLIC_PCID);
-        plic_set_priority(PLIC_PCIA, 7);
-        plic_set_priority(PLIC_PCIB, 7);
-        plic_set_priority(PLIC_PCIC, 7);
-        plic_set_priority(PLIC_PCID, 7);
-    } else {
-        printf("BAD!!!\n");
+bool plic_init() {
+    if (!mmu_map_many(kernel_mmu_table, PLIC_BASE, PLIC_BASE, 0x00300000UL, PB_READ | PB_WRITE)) {
+        return false;
     }
+
+    plic_set_threshold(0, 0);
+
+    plic_enable(0, PLIC_PCIA);
+    plic_enable(0, PLIC_PCIB);
+    plic_enable(0, PLIC_PCIC);
+    plic_enable(0, PLIC_PCID);
+    plic_set_priority(PLIC_PCIA, 7);
+    plic_set_priority(PLIC_PCIB, 7);
+    plic_set_priority(PLIC_PCIC, 7);
+    plic_set_priority(PLIC_PCID, 7);
+
+    return true;
 }
 
 // Delegate handling based on irq

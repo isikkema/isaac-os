@@ -34,11 +34,13 @@ void plic_complete(int hart, int id) {
     *base = id;
 }
 
-void plic_init() {
+bool plic_init() {
     plic_set_threshold(0, 0);    // Set hart 0 to threshold 0
 
     plic_enable(0, PLIC_UART);          // Enable UART on hart 0
     plic_set_priority(PLIC_UART, 7);    // Set UART to priority 7
+
+    return true;
 }
 
 // Delegate handling based on irq
