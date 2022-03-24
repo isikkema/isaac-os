@@ -18,6 +18,8 @@
         (((uint64_t) reg        & 0x3ff) << 02)   \
     ) \
 )
+#define PCIE_GET_BUS(ecam)  ((((uint64_t) ecam) >> 20) & 0xffUL)
+#define PCIE_GET_SLOT(ecam) ((((uint64_t) ecam) >> 15) & 0x1fUL)
 
 #define PCI_HEADER_TYPE_DEVICE          (0)
 #define PCI_HEADER_TYPE_BRIDGE          (1)

@@ -1,5 +1,7 @@
 #include <plic.h>
 #include <uart.h>
+#include <virtio.h>
+#include <printf.h>
 
 
 void plic_set_priority(int interrupt_id, char priority) {
@@ -33,21 +35,42 @@ void plic_complete(int hart, int id) {
 }
 
 void plic_init() {
-    plic_enable(0, PLIC_UART);          // Enable UART on hart 0
+    plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
 
+    plic_enable(0, PLIC_UART);          // Enable UART on hart 0
     plic_set_priority(PLIC_UART, 7);    // Set UART to priority 7
 
-    plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
+    plic_enable(0, PLIC_PCIA);
+    plic_enable(0, PLIC_PCIB);
+    plic_enable(0, PLIC_PCIC);
+    plic_enable(0, PLIC_PCID);
+    plic_set_priority(PLIC_PCIA, 7);
+    plic_set_priority(PLIC_PCIB, 7);
+    plic_set_priority(PLIC_PCIC, 7);
+    plic_set_priority(PLIC_PCID, 7);
 }
 
-// Delegate handling based on irq. However, we only care about UART (10)
+// Delegate handling based on irq
 void plic_handle_irq(int hart) {
     uint32_t irq;
 
     irq = plic_claim(hart);
 
-    if (irq == 10)
-        uart_handle_irq();
+    switch (irq) {
+        case PLIC_UART:
+            uart_handle_irq();
+            break;
+
+        case PLIC_PCIA:
+        case PLIC_PCIB:
+        case PLIC_PCIC:
+        case PLIC_PCID:
+            virtio_handle_irq(irq);
+            break;
+        
+        default:
+            printf("plic_handle_irq: unsupported irq: %d\n", irq);
+    }
 
     plic_complete(hart, irq);
 }
