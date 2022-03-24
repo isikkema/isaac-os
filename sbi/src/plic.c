@@ -36,7 +36,7 @@ void plic_complete(int hart, int id, char mode) {
 
 void plic_init() {
     plic_set_threshold(0, 0, PLIC_MODE_MACHINE);    // Set hart 0 to threshold 0
-    plic_set_threshold(0, 0, PLIC_MODE_SUPERVISOR);
+    // plic_set_threshold(0, 0, PLIC_MODE_SUPERVISOR);
 
     plic_enable(0, PLIC_UART, PLIC_MODE_MACHINE);   // Enable UART on hart 0
     plic_set_priority(PLIC_UART, 7);                // Set UART to priority 7
@@ -45,14 +45,14 @@ void plic_init() {
     // plic_enable(0, PLIC_PCIB, PLIC_MODE_MACHINE);
     // plic_enable(0, PLIC_PCIC, PLIC_MODE_MACHINE);
     // plic_enable(0, PLIC_PCID, PLIC_MODE_MACHINE);
-    plic_enable(0, PLIC_PCIA, PLIC_MODE_SUPERVISOR);
-    plic_enable(0, PLIC_PCIB, PLIC_MODE_SUPERVISOR);
-    plic_enable(0, PLIC_PCIC, PLIC_MODE_SUPERVISOR);
-    plic_enable(0, PLIC_PCID, PLIC_MODE_SUPERVISOR);
-    plic_set_priority(PLIC_PCIA, 7);
-    plic_set_priority(PLIC_PCIB, 7);
-    plic_set_priority(PLIC_PCIC, 7);
-    plic_set_priority(PLIC_PCID, 7);
+    // plic_enable(0, PLIC_PCIA, PLIC_MODE_SUPERVISOR);
+    // plic_enable(0, PLIC_PCIB, PLIC_MODE_SUPERVISOR);
+    // plic_enable(0, PLIC_PCIC, PLIC_MODE_SUPERVISOR);
+    // plic_enable(0, PLIC_PCID, PLIC_MODE_SUPERVISOR);
+    // plic_set_priority(PLIC_PCIA, 7);
+    // plic_set_priority(PLIC_PCIB, 7);
+    // plic_set_priority(PLIC_PCIC, 7);
+    // plic_set_priority(PLIC_PCID, 7);
 }
 
 // Delegate handling based on irq

@@ -9,6 +9,10 @@
 #include <kmalloc.h>
 #include <pci.h>
 #include <rng.h>
+#include <plic.h>
+
+
+uint64_t OS_GPREGS[32];
 
 
 void test2() {
@@ -47,6 +51,10 @@ int main(int hart) {
         printf("Failed to init pci\n");
         return 1;
     }
+
+    plic_init();
+
+    CSR_WRITE("sscratch", OS_GPREGS);
 
     uint64_t* a = kzalloc(sizeof(uint64_t));
 
