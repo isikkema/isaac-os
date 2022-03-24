@@ -30,12 +30,7 @@ char blocking_getchar() {
 }
 
 void clear_buffer(ConsoleBuffer* cb) {
-    int i;
-
-    for (i = 0; i < CONSOLE_BUFFER_SIZE; i++) {
-        cb->buffer[i] = '\0';
-    }
-
+    memset(cb->buffer, '\0', CONSOLE_BUFFER_SIZE);
     cb->idx = 0;
 }
 
@@ -254,7 +249,30 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    
+    u32 size;
+
+    if (argc < 2) {
+        return;
+    }
+
+    size = atoi(args[1]);
+    u8* a = kzalloc(16+size+16);
+
+    printf("a: 0x%08x\n", (u64) a);
+
+    memset(a+18, 0xba, size);
+
+    u32 i;
+    for (i = 0; i < size+32; i++) {
+        if (i % 16 == 0) {
+            printf("\n");
+        }
+
+        printf("%02x ", a[i]);
+    }
+
+    printf("\n");
+    kfree(a);
 }
 
 void random(int argc, char** args) {

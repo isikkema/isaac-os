@@ -1,6 +1,6 @@
 #pragma once
 
-#define CONSOLE_BUFFER_SIZE (255)
+#define CONSOLE_BUFFER_SIZE (256)
 
 
 typedef struct ConsoleBuffer {

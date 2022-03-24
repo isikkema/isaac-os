@@ -34,12 +34,33 @@ int strcmp(char a[], char b[]) {
 }
 
 void* memset(void* mem, uint8_t val, size_t n) {
-    uint8_t* ptr;
-    size_t i;
+    uint8_t* ptr8;
+    uint64_t* ptr64;
+    uint64_t addr;
+    uint64_t aligned_bottom;
+    uint64_t aligned_top;
+    uint64_t val64;
 
-    ptr = (uint8_t*) mem;
-    for (i = 0; i < n; i++) {
-        ptr[i] = val;
+    addr = (uint64_t) mem;
+    aligned_bottom = ((addr + 0x07UL) & ~0x07UL);
+    aligned_top = (addr + n) & ~0x07UL;
+    if (aligned_bottom > addr + n) {
+        aligned_bottom = addr + n;
+    }
+
+    val64 = val;
+    val64 = val64 | (val64 << 8) | (val64 << 16) | (val64 << 24) | (val64 << 32) | (val64 << 40) | (val64 << 48) | (val64 << 56);
+
+    for (ptr8 = (uint8_t*) addr; (uint64_t) ptr8 < aligned_bottom; ptr8++) {
+        *ptr8 = val;
+    }
+
+    for (ptr64 = (uint64_t*) aligned_bottom; (uint64_t) ptr64 < aligned_top; ptr64++) {
+        *ptr64 = val64;
+    }
+
+    for (ptr8 = (uint8_t*) ptr64; (uint64_t) ptr8 < addr + n; ptr8++) {
+        *ptr8 = val;
     }
 
     return mem;
