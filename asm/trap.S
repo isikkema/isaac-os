@@ -27,8 +27,12 @@ os_trap_vector:
     sd      t6, 8*31(t5)
 
     # Go into C
-    la      sp, _stack_end
-    la      gp, __global_pointer$
+
+    ### This fucks up the stack. Why did I do this?
+    ### Call takes care of everything, and
+    ### loadgp takes care of everything else.
+    # la      sp, _stack_end
+    # la      gp, __global_pointer$
 
     # Don't think we need multiple stacks
     # in any case, idk how without mhartid
@@ -43,5 +47,4 @@ os_trap_vector:
         .set i, i + 1
     .endr
 
-    wfi
     sret

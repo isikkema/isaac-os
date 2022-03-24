@@ -59,7 +59,6 @@ int main(int hart) {
     uint64_t* a = kzalloc(sizeof(uint64_t));
 
     printf("a: 0x%016lx\n", *a);
-
     rng_fill(a, sizeof(uint64_t));
     WFI();
     printf("a: 0x%016lx\n", *a);

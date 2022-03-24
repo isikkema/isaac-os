@@ -27,6 +27,8 @@ sbi_trap_vector:
     sd      t6, 8*31(t5)
 
     # Go into C
+
+    ### WARNING: This might be a bug.
     la      sp, _stack_end
     la      gp, __global_pointer$
 
