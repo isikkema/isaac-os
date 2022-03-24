@@ -6,6 +6,7 @@
 #include <mmu.h>
 #include <plic.h>
 #include <pci.h>
+#include <lock.h>
 
 
 VirtioDevice virtio_rng_device;
@@ -13,6 +14,8 @@ VirtioDevice virtio_rng_device;
 
 bool virtio_rng_driver(volatile EcamHeader* ecam) {
     volatile Capability* cap;
+
+    virtio_rng_device.lock = MUTEX_UNLOCKED;
 
     // Iterate through the capabilities if enabled
     if (ecam->status_reg & PCI_STATUS_REG_CAPABILITIES) {
@@ -173,6 +176,8 @@ bool rng_fill(void* buffer, u16 size) {
         return false;
     }
 
+    mutex_sbi_lock(&virtio_rng_device.lock);
+
     at_idx = virtio_rng_device.at_idx;
     queue_size = virtio_rng_device.cfg->queue_size;
     phys_addr = mmu_translate(kernel_mmu_table, (u64) buffer);
@@ -198,6 +203,8 @@ bool rng_fill(void* buffer, u16 size) {
     );
     
     *notify_ptr = 0;
+
+    mutex_unlock(&virtio_rng_device.lock);
 
     return true;
 }

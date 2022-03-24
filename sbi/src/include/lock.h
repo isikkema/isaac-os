@@ -1,6 +1,13 @@
 #pragma once
 
 
+#define MUTEX_UNLOCKED_STATE    0
+#define MUTEX_LOCKED_STATE      1
+
+#define MUTEX_UNLOCKED  (Mutex) { MUTEX_UNLOCKED_STATE }
+#define MUTEX_LOCKED    (Mutex) { MUTEX_LOCKED_STATE }
+
+
 typedef struct Mutex {
     int state;
 } Mutex;

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <lock.h>
 
 
 #define VIRTIO_PCI_CAP_CFG_TYPE_COMMON       (1)
@@ -105,6 +106,7 @@ typedef struct virtio_device {
    volatile VirtioNotifyCapability* notify;
    volatile VirtioISRCapability* isr;
    uint64_t base_notify_offset;
+   Mutex lock;
    uint16_t at_idx;
    uint16_t ack_idx;
    uint8_t irq;
