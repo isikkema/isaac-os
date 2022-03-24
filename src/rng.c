@@ -176,6 +176,11 @@ bool rng_fill(void* buffer, u16 size) {
         return false;
     }
 
+    if (size == 0) {
+        printf("rng_fill: zero sized buffers are not allowed\n");
+        return false;
+    }
+    
     mutex_sbi_lock(&virtio_rng_device.lock);
 
     at_idx = virtio_rng_device.at_idx;

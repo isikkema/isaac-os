@@ -1,6 +1,5 @@
 #include <printf.h>
 #include <console.h>
-#include <string.h>
 #include <page_alloc.h>
 #include <sbi.h>
 #include <csr.h>
@@ -8,7 +7,6 @@
 #include <mmu.h>
 #include <kmalloc.h>
 #include <pci.h>
-#include <rng.h>
 #include <plic.h>
 
 
@@ -59,16 +57,9 @@ int main(int hart) {
 
     CSR_WRITE("sscratch", OS_GPREGS);
 
-    uint64_t* a = kzalloc(sizeof(uint64_t));
-
-    printf("a: 0x%016lx\n", *a);
-    rng_fill(a, sizeof(uint64_t));
-    WFI();
-    printf("a: 0x%016lx\n", *a);
-
     // todo: add help, malloc, and free commands
     //       also improve hart starting/stopping
-    // run_console();
+    run_console();
     sbi_poweroff();
     
     return 0;

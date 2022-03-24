@@ -9,6 +9,9 @@
 #include <mmu.h>
 #include <utils.h>
 #include <pci.h>
+#include <rs_int.h>
+#include <rng.h>
+#include <csr.h>
 
 
 char blocking_getchar() {
@@ -159,6 +162,8 @@ int handle_command(ConsoleBuffer* cb) {
         print_args(argc, args);
     } else if (strcmp("test", args[0]) == 0) {
         test(argc, args);
+    } else if (strcmp("random", args[0]) == 0) {
+        random(argc, args);
     } else {
         printf("Unknown command: %s\n", args[0]);
     }
@@ -249,8 +254,41 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    pci_print();
-    // sbi_poweroff();
+    
+}
+
+void random(int argc, char** args) {
+    u8* bytes;
+    u16 size;
+    u16 i;
+
+    if (argc < 2) {
+        printf("random: not enough arguments\n");
+        return;
+    }
+
+    size = atoi(args[1]);
+    bytes = kzalloc(size);
+
+    if (!rng_fill(bytes, size)) {
+        printf("random: rng_fill failed\n");
+        kfree(bytes);
+        return;
+    }
+
+    WFI();
+
+    for (i = 0; i < size; i++) {
+        if (i % 64 == 0 && i != 0) {
+            printf("\n");
+        }
+
+        printf("%02x ", bytes[i]);
+    }
+
+    printf("\n");
+    kfree(bytes);
+    return;
 }
 
 void start_hart(int argc, char** args) {
