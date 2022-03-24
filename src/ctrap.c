@@ -2,15 +2,20 @@
 #include <rs_int.h>
 #include <printf.h>
 #include <plic.h>
+#include <sbi.h>
 
 
 void c_trap(void) {
     u64 scause;
     u64 sepc;
+    u32 hart;
     bool is_async;
 
     CSR_READ(scause, "scause");
     CSR_READ(sepc, "sepc");
+
+    hart = sbi_whoami();
+    printf("hart: %d\n", hart);
 
     is_async = MCAUSE_IS_ASYNC(scause);
     scause = MCAUSE_NUM(scause);
@@ -18,7 +23,7 @@ void c_trap(void) {
     if (is_async) {
         switch (scause) {
             case 9:
-                plic_handle_irq(0);
+                plic_handle_irq(hart);
                 break;
             
             default:

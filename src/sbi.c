@@ -54,6 +54,14 @@ int sbi_hart_stop(void) {
     return stopped;
 }
 
+int sbi_whoami(void) {
+    int hart;
+
+    asm volatile ("mv a7, %1\necall\nmv %0, a0" : "=r"(hart) : "r"(SBI_WHOAMI) : "a7", "a0");
+
+    return hart;
+}
+
 void sbi_poweroff(void) {
     asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
 }
