@@ -9,41 +9,46 @@ void plic_set_priority(int interrupt_id, char priority) {
     *base = priority & 0x7;
 }
 
-void plic_set_threshold(int hart, char priority) {
-    uint32_t *base = (uint32_t *)PLIC_THRESHOLD(hart, PLIC_MODE_MACHINE);
+void plic_set_threshold(int hart, char priority, char mode) {
+    uint32_t *base = (uint32_t *)PLIC_THRESHOLD(hart, mode);
     *base = priority & 0x7;
 }
 
-void plic_enable(int hart, int interrupt_id) {
-    uint32_t *base = (uint32_t *)PLIC_ENABLE(hart, PLIC_MODE_MACHINE);
+void plic_enable(int hart, int interrupt_id, char mode) {
+    uint32_t *base = (uint32_t *)PLIC_ENABLE(hart, mode);
     base[interrupt_id / 32] |= 1UL << (interrupt_id % 32);
 }
 
-void plic_disable(int hart, int interrupt_id) {
-    uint32_t *base = (uint32_t *)PLIC_ENABLE(hart, PLIC_MODE_MACHINE);
+void plic_disable(int hart, int interrupt_id, char mode) {
+    uint32_t *base = (uint32_t *)PLIC_ENABLE(hart, mode);
     base[interrupt_id / 32] &= ~(1UL << (interrupt_id % 32));
 }
 
-uint32_t plic_claim(int hart) {
-    uint32_t *base = (uint32_t *)PLIC_CLAIM(hart, PLIC_MODE_MACHINE);
+uint32_t plic_claim(int hart, char mode) {
+    uint32_t *base = (uint32_t *)PLIC_CLAIM(hart, mode);
     return *base;
 }
 
-void plic_complete(int hart, int id) {
-    uint32_t *base = (uint32_t *)PLIC_CLAIM(hart, PLIC_MODE_MACHINE);
+void plic_complete(int hart, int id, char mode) {
+    uint32_t *base = (uint32_t *)PLIC_CLAIM(hart, mode);
     *base = id;
 }
 
 void plic_init() {
-    plic_set_threshold(0, 0);           // Set hart 0 to threshold 0
+    plic_set_threshold(0, 0, PLIC_MODE_MACHINE);    // Set hart 0 to threshold 0
+    plic_set_threshold(0, 0, PLIC_MODE_SUPERVISOR);
 
-    plic_enable(0, PLIC_UART);          // Enable UART on hart 0
-    plic_set_priority(PLIC_UART, 7);    // Set UART to priority 7
+    plic_enable(0, PLIC_UART, PLIC_MODE_MACHINE);   // Enable UART on hart 0
+    plic_set_priority(PLIC_UART, 7);                // Set UART to priority 7
 
-    plic_enable(0, PLIC_PCIA);
-    plic_enable(0, PLIC_PCIB);
-    plic_enable(0, PLIC_PCIC);
-    plic_enable(0, PLIC_PCID);
+    // plic_enable(0, PLIC_PCIA, PLIC_MODE_MACHINE);
+    // plic_enable(0, PLIC_PCIB, PLIC_MODE_MACHINE);
+    // plic_enable(0, PLIC_PCIC, PLIC_MODE_MACHINE);
+    // plic_enable(0, PLIC_PCID, PLIC_MODE_MACHINE);
+    plic_enable(0, PLIC_PCIA, PLIC_MODE_SUPERVISOR);
+    plic_enable(0, PLIC_PCIB, PLIC_MODE_SUPERVISOR);
+    plic_enable(0, PLIC_PCIC, PLIC_MODE_SUPERVISOR);
+    plic_enable(0, PLIC_PCID, PLIC_MODE_SUPERVISOR);
     plic_set_priority(PLIC_PCIA, 7);
     plic_set_priority(PLIC_PCIB, 7);
     plic_set_priority(PLIC_PCIC, 7);
@@ -54,23 +59,16 @@ void plic_init() {
 void plic_handle_irq(int hart) {
     uint32_t irq;
 
-    irq = plic_claim(hart);
+    irq = plic_claim(hart, PLIC_MODE_MACHINE);
 
     switch (irq) {
         case PLIC_UART:
             uart_handle_irq();
-            break;
-
-        case PLIC_PCIA:
-        case PLIC_PCIB:
-        case PLIC_PCIC:
-        case PLIC_PCID:
-            virtio_handle_irq(irq);
             break;
         
         default:
             printf("plic_handle_irq: unsupported irq: %d\n", irq);
     }
 
-    plic_complete(hart, irq);
+    plic_complete(hart, irq, PLIC_MODE_MACHINE);
 }

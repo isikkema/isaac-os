@@ -1,5 +1,4 @@
 .align 4
 .global os_trap_vector
 os_trap_vector:
-    j .
-    ret
+    tail c_trap

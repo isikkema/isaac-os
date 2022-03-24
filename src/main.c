@@ -48,7 +48,6 @@ int main(int hart) {
         return 1;
     }
 
-
     uint64_t* a = kzalloc(sizeof(uint64_t));
 
     printf("a: 0x%016lx\n", *a);

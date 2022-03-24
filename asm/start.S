@@ -13,7 +13,7 @@ _start:
     csrw    sstatus, t1
 
     li      t1, (1 << 9)                # Enable interrupts
-    csrw    sip, t1
+    csrw    sie, t1
 
     la      t1, os_trap_vector          # Set stvec so trap_vector handles interrupts
     csrw    stvec, t1

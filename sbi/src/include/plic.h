@@ -38,10 +38,10 @@
 
 
 void plic_set_priority(int interrupt_id, char priority);
-void plic_set_threshold(int hart, char priority);
-void plic_enable(int hart, int interrupt_id);
-void plic_disable(int hart, int interrupt_id);
-uint32_t plic_claim(int hart);
-void plic_complete(int hart, int id);
+void plic_set_threshold(int hart, char priority, char mode);
+void plic_enable(int hart, int interrupt_id, char mode);
+void plic_disable(int hart, int interrupt_id, char mode);
+uint32_t plic_claim(int hart, char mode);
+void plic_complete(int hart, int id, char mode);
 void plic_init();
 void plic_handle_irq(int hart);
