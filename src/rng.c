@@ -39,7 +39,6 @@ bool virtio_rng_driver(volatile EcamHeader* ecam) {
     }
 
     virtio_rng_device.irq = PLIC_PCIA + ((PCIE_GET_BUS(ecam) + PCIE_GET_SLOT(ecam)) % 4);
-    printf("irq: %d\n", virtio_rng_device.irq);
 
     return true;
 }
@@ -192,15 +191,11 @@ bool rng_fill(void* buffer, u16 size) {
     virtio_rng_device.at_idx = (virtio_rng_device.at_idx + 1) % queue_size;
 
     // Notify
-
     notify_ptr = (u32*) BAR_NOTIFY_CAP(
         virtio_rng_device.base_notify_offset,
         virtio_rng_device.cfg->queue_notify_off,
         virtio_rng_device.notify->notify_off_multiplier
     );
-    
-    // printf("base: 0x%08x, qno: 0x%08x, mult: 0x%08x\n", virtio_rng_device.base_notify_offset, virtio_rng_device.cfg->queue_notify_off, virtio_rng_device.notify->notify_off_multiplier);
-    // printf("Notify ptr: 0x%08x\n", (u64) notify_ptr);
     
     *notify_ptr = 0;
 

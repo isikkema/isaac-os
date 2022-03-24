@@ -5,8 +5,6 @@
 
 
 void c_trap(void) {
-    printf("HIT OS C_TRAP!\n");
-
     u64 scause;
     u64 sepc;
     bool is_async;
