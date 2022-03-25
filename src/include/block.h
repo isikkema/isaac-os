@@ -76,3 +76,4 @@ bool virtio_block_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPc
 bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
 bool block_write(void* dst, void* src, uint32_t size);
+bool block_flush(void* addr);
