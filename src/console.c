@@ -12,6 +12,7 @@
 #include <rs_int.h>
 #include <rng.h>
 #include <csr.h>
+#include <block.h>
 
 
 char blocking_getchar() {
@@ -249,30 +250,19 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    u32 size;
+    u8* buffer;
+    char* s;
 
-    if (argc < 2) {
-        return;
+    buffer = kzalloc(64);
+
+    s = "Hello, World! I'm writing to a disk!";
+    memcpy(buffer, s, strlen(s));
+
+    if (!block_write(0, buffer, 64)) {
+        printf("block_write failed\n");
     }
 
-    size = atoi(args[1]);
-    u8* a = kzalloc(16+size+16);
-
-    printf("a: 0x%08x\n", (u64) a);
-
-    memset(a+18, 0xba, size);
-
-    u32 i;
-    for (i = 0; i < size+32; i++) {
-        if (i % 16 == 0) {
-            printf("\n");
-        }
-
-        printf("%02x ", a[i]);
-    }
-
-    printf("\n");
-    kfree(a);
+    kfree(buffer);
 }
 
 void random(int argc, char** args) {

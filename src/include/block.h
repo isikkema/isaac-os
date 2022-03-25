@@ -7,6 +7,18 @@
 #include <pci.h>
 
 
+#define VIRTIO_BLK_T_IN             0
+#define VIRTIO_BLK_T_OUT            1
+#define VIRTIO_BLK_T_FLUSH          4
+#define VIRTIO_BLK_T_DISCARD        11
+#define VIRTIO_BLK_T_WRITE_ZEROES   13
+
+#define VIRTIO_BLK_S_OK       0
+#define VIRTIO_BLK_S_IOERR    1
+#define VIRTIO_BLK_S_UNSUPP   2
+#define VIRTIO_BLK_S_INCOMP   255
+
+
 typedef struct virtio_blk_config {
    uint64_t capacity;
    uint32_t size_max;
@@ -38,6 +50,20 @@ typedef struct virtio_blk_config {
    uint8_t unused1[3];
 } VirtioBlockDeviceCapability;
 
+typedef struct virtio_block_desc_1 {
+   uint32_t type;
+   uint32_t reserved;
+   uint64_t sector;
+} VirtioBlockDesc1;
+
+typedef struct virtio_block_desc_2 {
+   uint8_t* data;
+} VirtioBlockDesc2;
+
+typedef struct virtio_block_desc_3 {
+   uint8_t status;
+} VirtioBlockDesc3;
+
 
 extern VirtioDevice virtio_block_device;
 
@@ -48,3 +74,5 @@ bool virtio_block_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile Virti
 bool virtio_block_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 bool virtio_block_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+
+bool block_write(void* dst, void* src, uint32_t size);

@@ -29,7 +29,7 @@
 #define VIRTIO_ISR_QUEUE_INT        (1 << 0)
 #define VIRTIO_ISR_DEVICE_CFG_INT   (1 << 1)
 
-#define VIRTIO_OUR_PREFERRED_QUEUE_SIZE   (1024)
+#define VIRTIO_OUR_PREFERRED_QUEUE_SIZE   (512)
 
 #define BAR_NOTIFY_CAP(offset, queue_notify_off, notify_off_multiplier) ((offset) + (queue_notify_off) * (notify_off_multiplier))
 
@@ -106,6 +106,7 @@ typedef struct virtio_device {
    volatile VirtioNotifyCapability* notify;
    volatile VirtioISRCapability* isr;
    volatile void* device_cfg;
+   void** desc_buffers;
    uint64_t base_notify_offset;
    Mutex lock;
    uint16_t at_idx;
