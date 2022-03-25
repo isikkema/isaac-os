@@ -262,6 +262,10 @@ void test(int argc, char** args) {
         printf("block_write failed\n");
     }
 
+    if (!block_flush(0)) {
+        printf("block_flush failed\n");
+    }
+
     kfree(buffer);
 }
 

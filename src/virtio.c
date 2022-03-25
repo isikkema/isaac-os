@@ -22,10 +22,12 @@ void virtio_handle_irq(uint32_t irq) {
             ack_idx = virtio_block_device.ack_idx;
 
             desc = virtio_block_device.queue_desc[virtio_block_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
-            desc = virtio_block_device.queue_desc[desc.next % queue_size];
-            block_desc3 = virtio_block_device.desc_buffers[desc.next % queue_size];
+            while (desc.flags & VIRT_QUEUE_DESC_FLAG_NEXT) {
+                block_desc3 = virtio_block_device.desc_buffers[desc.next % queue_size];
+                desc = virtio_block_device.queue_desc[desc.next % queue_size];
+            }
 
-            printf("irq: idx: %d, vaddr3: 0x%08x\n", desc.next % queue_size, (u64) block_desc3);
+            printf("irq: vaddr3: 0x%08x\n", (u64) block_desc3);
             printf("irq: status: %d\n", block_desc3->status);
 
             virtio_block_device.ack_idx++;
