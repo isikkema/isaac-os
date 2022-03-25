@@ -105,6 +105,7 @@ typedef struct virtio_device {
    volatile VirtioPciCfgCommon* cfg;
    volatile VirtioNotifyCapability* notify;
    volatile VirtioISRCapability* isr;
+   volatile void* device_cfg;
    uint64_t base_notify_offset;
    Mutex lock;
    uint16_t at_idx;

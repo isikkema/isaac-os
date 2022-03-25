@@ -6,6 +6,7 @@
 #include <virtio.h>
 #include <kmalloc.h>
 #include <rng.h>
+#include <block.h>
 
 
 DriverList* driver_head;
@@ -274,6 +275,11 @@ bool pci_init_drivers() {
 
     // rng
     if (!pci_register_driver(0x1af4, 0x1044, virtio_rng_driver)) {
+        return false;
+    }
+
+    // block
+    if (!pci_register_driver(0x1af4, 0x1042, virtio_block_driver)) {
         return false;
     }
 
