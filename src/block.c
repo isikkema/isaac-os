@@ -182,6 +182,103 @@ bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile Virti
     return true;
 }
 
+bool block_read(void* dst, void* src, uint32_t size) {
+    u32 at_idx;
+    u32 first_idx;
+    u32 next_idx;
+    u32 queue_size;
+    u32* notify_ptr;
+    VirtioBlockDesc1* desc1;
+    VirtioBlockDesc2* desc2;
+    VirtioBlockDesc3* desc3;
+    volatile VirtioBlockDeviceCapability* cfg;
+    u32 low_sector;
+    u32 high_sector;
+    u32 aligned_size;
+    u8* data;
+
+    if (!virtio_block_device.enabled) {
+        return false;
+    }
+
+    mutex_sbi_lock(&virtio_block_device.lock);
+
+    cfg = virtio_block_device.device_cfg;
+
+    at_idx = virtio_block_device.at_idx;
+    first_idx = at_idx;
+    queue_size = virtio_block_device.cfg->queue_size;
+
+    low_sector = (u64) src / cfg->blk_size;
+    high_sector = (((u64) src + size + cfg->blk_size - 1) & ~(cfg->blk_size - 1)) / cfg->blk_size;
+    aligned_size = (high_sector - low_sector) * cfg->blk_size;
+
+    printf("size: %d, blk_size: %d\n", size, cfg->blk_size);
+    printf("low: %d, high: %d, aligned_size: %d\n", low_sector, high_sector, aligned_size);
+
+    desc1 = kzalloc(sizeof(VirtioBlockDesc1));
+    desc1->type = VIRTIO_BLK_T_IN;
+    desc1->sector = low_sector;
+
+    desc2 = kzalloc(sizeof(VirtioBlockDesc2));
+    desc2->data = (u8*) mmu_translate(kernel_mmu_table, (u64) dst);
+
+    desc3 = kzalloc(sizeof(VirtioBlockDesc3));
+    desc3->status = VIRTIO_BLK_S_INCOMP;
+
+    // Add descriptors to queue
+    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc1);
+    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDesc1);
+    virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
+
+    virtio_block_device.desc_buffers[at_idx] = desc1;
+    printf("idx: %d, vaddr: 0x%08x\n", at_idx, (u64) desc1);
+
+    next_idx = (at_idx + 1) % queue_size;
+    virtio_block_device.queue_desc[at_idx].next = next_idx;
+    at_idx = next_idx;
+
+    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc2);
+    virtio_block_device.queue_desc[at_idx].len = aligned_size;
+    virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT | VIRT_QUEUE_DESC_FLAG_WRITE;
+
+    virtio_block_device.desc_buffers[at_idx] = desc2;
+    printf("idx: %d, vaddr: 0x%08x\n", at_idx, (u64) desc2);
+
+    next_idx = (at_idx + 1) % queue_size;
+    virtio_block_device.queue_desc[at_idx].next = next_idx;
+    at_idx = next_idx;
+
+    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc3);
+    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDesc3);
+    virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
+    virtio_block_device.queue_desc[at_idx].next = 0;
+
+    virtio_block_device.desc_buffers[at_idx] = desc3;
+    printf("idx: %d, vaddr: 0x%08x\n", at_idx, (u64) desc3);
+
+    at_idx = (at_idx + 1) % queue_size;
+    virtio_block_device.at_idx = at_idx;
+
+    // Add descriptor to driver ring
+    virtio_block_device.queue_driver->ring[virtio_block_device.queue_driver->idx % queue_size] = first_idx;
+
+    // Increment indices
+    virtio_block_device.queue_driver->idx += 1;
+
+    // Notify
+    notify_ptr = (u32*) BAR_NOTIFY_CAP(
+        virtio_block_device.base_notify_offset,
+        virtio_block_device.cfg->queue_notify_off,
+        virtio_block_device.notify->notify_off_multiplier
+    );
+    
+    *notify_ptr = 0;
+
+    mutex_unlock(&virtio_block_device.lock);
+
+    return true;
+}
 
 bool block_write(void* dst, void* src, uint32_t size) {
     u32 at_idx;
@@ -202,11 +299,6 @@ bool block_write(void* dst, void* src, uint32_t size) {
         return false;
     }
 
-    if (size == 0) {
-        printf("block_write: zero sized buffers!\n");
-        // return false;
-    }
-    
     mutex_sbi_lock(&virtio_block_device.lock);
 
     cfg = virtio_block_device.device_cfg;
@@ -222,16 +314,15 @@ bool block_write(void* dst, void* src, uint32_t size) {
     printf("size: %d, blk_size: %d\n", size, cfg->blk_size);
     printf("low: %d, high: %d, aligned_size: %d\n", low_sector, high_sector, aligned_size);
 
-    data = kzalloc(aligned_size);
-    memcpy(data, src, size);
-    printf("%s\n", data);
+    // data = kzalloc(aligned_size);
+    // memcpy(data, src, size);
 
     desc1 = kzalloc(sizeof(VirtioBlockDesc1));
     desc1->type = VIRTIO_BLK_T_OUT;
     desc1->sector = low_sector;
 
     desc2 = kzalloc(sizeof(VirtioBlockDesc2));
-    desc2->data = (u8*) mmu_translate(kernel_mmu_table, (u64) data);
+    desc2->data = (u8*) mmu_translate(kernel_mmu_table, (u64) src);
 
     desc3 = kzalloc(sizeof(VirtioBlockDesc3));
     desc3->status = VIRTIO_BLK_S_INCOMP;

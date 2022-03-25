@@ -251,22 +251,55 @@ void cmd_print(int argc, char** args) {
 
 void test(int argc, char** args) {
     u8* buffer;
+    u8* buffer2;
     char* s;
 
-    buffer = kzalloc(64);
+    buffer = kzalloc(512);
+    buffer2 = kzalloc(512);
+
+    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+
+    if (!block_read(buffer2, 0, 512)) {
+        printf("bad\n");
+    }
+
+    WFI();
+    WFI();
+
+    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
 
     s = "Hello, World! I'm writing to a disk!";
     memcpy(buffer, s, strlen(s));
 
+    // printf("%s\n", buffer);
     if (!block_write(0, buffer, 64)) {
         printf("block_write failed\n");
     }
+
+    WFI();
+    WFI();
+
+    // printf("%s\n", buffer);
 
     if (!block_flush(0)) {
         printf("block_flush failed\n");
     }
 
+    WFI();
+    WFI();
+
+    // printf("%s\n", buffer);
+    if (!block_read(buffer2, 0, 512)) {
+        printf("bad\n");
+    }
+
+    WFI();
+    WFI();
+
+    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+
     kfree(buffer);
+    kfree(buffer2);
 }
 
 void random(int argc, char** args) {
