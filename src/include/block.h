@@ -56,9 +56,7 @@ typedef struct virtio_block_desc_1 {
    uint64_t sector;
 } VirtioBlockDesc1;
 
-typedef struct virtio_block_desc_2 {
-   uint8_t* data;
-} VirtioBlockDesc2;
+typedef uint8_t* VirtioBlockDesc2;
 
 typedef struct virtio_block_desc_3 {
    uint8_t status;

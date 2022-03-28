@@ -221,7 +221,7 @@ bool block_read(void* dst, void* src, uint32_t size) {
     desc1->sector = low_sector;
 
     desc2 = kzalloc(sizeof(VirtioBlockDesc2));
-    desc2->data = (u8*) mmu_translate(kernel_mmu_table, (u64) dst);
+    desc2 = (u8*) mmu_translate(kernel_mmu_table, (u64) dst);
 
     desc3 = kzalloc(sizeof(VirtioBlockDesc3));
     desc3->status = VIRTIO_BLK_S_INCOMP;
@@ -322,7 +322,7 @@ bool block_write(void* dst, void* src, uint32_t size) {
     desc1->sector = low_sector;
 
     desc2 = kzalloc(sizeof(VirtioBlockDesc2));
-    desc2->data = (u8*) mmu_translate(kernel_mmu_table, (u64) src);
+    desc2 = (u8*) mmu_translate(kernel_mmu_table, (u64) src);
 
     desc3 = kzalloc(sizeof(VirtioBlockDesc3));
     desc3->status = VIRTIO_BLK_S_INCOMP;

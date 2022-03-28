@@ -250,6 +250,17 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
+    // u8 bytes[5];
+
+    // for (u32 i = 0; i < 100000; i++) {
+    //     if (!rng_fill(bytes, 5)) {
+    //         printf("rng_fill failed\n");
+    //         return;
+    //     }
+
+    //     WFI();
+    //     printf("%6d: %02x %02x %02x %02x %02x\n", i, bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
+    // }
     u8* buffer;
     u8* buffer2;
     char* s;
@@ -257,16 +268,16 @@ void test(int argc, char** args) {
     buffer = kzalloc(512);
     buffer2 = kzalloc(512);
 
-    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+    // printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
 
-    if (!block_read(buffer2, 0, 512)) {
-        printf("bad\n");
-    }
+    // if (!block_read(buffer2, 0, 512)) {
+    //     printf("bad\n");
+    // }
 
-    WFI();
-    WFI();
+    // WFI();
+    // WFI();
 
-    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+    // printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
 
     s = "Hello, World! I'm writing to a disk!";
     memcpy(buffer, s, strlen(s));
