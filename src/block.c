@@ -183,6 +183,7 @@ bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile Virti
     return true;
 }
 
+
 bool block_handle_irq() {
     u16 ack_idx;
     u16 queue_size;
@@ -227,6 +228,7 @@ bool block_handle_irq() {
 
     return rv;
 };
+
 
 bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock) {
     u32 at_idx;

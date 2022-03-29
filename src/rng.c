@@ -166,6 +166,16 @@ bool virtio_rng_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciC
 }
 
 
+bool rng_handle_irq() {
+    while (virtio_rng_device.ack_idx != virtio_rng_device.queue_device->idx) {
+        // I acknowledge!
+        virtio_rng_device.ack_idx++;
+    }
+
+    return true;
+}
+
+
 bool rng_fill(void* buffer, u16 size) {
     u64 phys_addr;
     u32 at_idx;
