@@ -183,6 +183,51 @@ bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile Virti
     return true;
 }
 
+bool block_handle_irq() {
+    u16 ack_idx;
+    u16 queue_size;
+    VirtioBlockRequestInfo* block_req_info;
+    VirtioBlockDesc1* block_desc1;
+    VirtioBlockDesc3* block_desc3;
+    volatile VirtioBlockDeviceCapability* block_device_cfg;
+    bool rv;
+
+    rv = true;
+
+    queue_size = virtio_block_device.cfg->queue_size;
+
+    while (virtio_block_device.ack_idx != virtio_block_device.queue_device->idx) {
+        ack_idx = virtio_block_device.ack_idx;
+
+        block_req_info = virtio_block_device.request_info[virtio_block_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
+        block_desc1 = block_req_info->desc1;
+        block_desc3 = block_req_info->desc3;
+
+        if (block_desc3->status != VIRTIO_BLK_S_OK) {
+            printf("virtio_handle_irq: block: non-OK status: %d, idx: %d\n", block_desc3->status, ack_idx % queue_size);
+            rv = false;
+        } else if (block_desc1->type == VIRTIO_BLK_T_IN) {  // If read request
+            // Copy exact chunk needed from buffer to dst
+            block_device_cfg = virtio_block_device.device_cfg;
+            memcpy(block_req_info->dst, block_req_info->data + ((u64) block_req_info->src % block_device_cfg->blk_size), block_req_info->size);
+        }
+
+        switch (block_desc1->type) {
+            case VIRTIO_BLK_T_IN:
+            case VIRTIO_BLK_T_OUT:
+                kfree(block_req_info->data);
+                kfree(block_req_info);
+        }                
+
+        kfree(block_desc1);
+        kfree(block_desc3);
+
+        virtio_block_device.ack_idx++;
+    }
+
+    return rv;
+};
+
 bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock) {
     u32 at_idx;
     u32 first_idx;
