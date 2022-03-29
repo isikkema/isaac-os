@@ -160,6 +160,10 @@ int handle_command(ConsoleBuffer* cb) {
         test(argc, args);
     } else if (strcmp("random", args[0]) == 0) {
         random(argc, args);
+    } else if (strcmp("read", args[0]) == 0) {
+        read(argc, args);
+    } else if (strcmp("write", args[0]) == 0) {
+        write(argc, args);
     } else {
         printf("Unknown command: %s\n", args[0]);
     }
@@ -250,67 +254,18 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    // u8 bytes[5];
-
-    // for (u32 i = 0; i < 100000; i++) {
-    //     if (!rng_fill(bytes, 5)) {
-    //         printf("rng_fill failed\n");
-    //         return;
-    //     }
-
-    //     WFI();
-    //     printf("%6d: %02x %02x %02x %02x %02x\n", i, bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
-    // }
     u8* buffer;
-    u8* buffer2;
-    char* s;
+    
+    buffer = kzalloc(11);
+    memset(buffer, 'a', 10);
 
-    buffer = kzalloc(512);
-    buffer2 = kzalloc(512);
+    printf("%s\n", buffer);
 
-    // printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+    memcpy(buffer, "bbbbbccccc", 5);
 
-    // if (!block_read(buffer2, 0, 512)) {
-    //     printf("bad\n");
-    // }
-
-    // WFI();
-    // WFI();
-
-    // printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
-
-    s = "Hello, World! I'm writing to a disk!";
-    memcpy(buffer, s, strlen(s));
-
-    // printf("%s\n", buffer);
-    if (!block_write(0, buffer, 64)) {
-        printf("block_write failed\n");
-    }
-
-    WFI();
-    WFI();
-
-    // printf("%s\n", buffer);
-
-    if (!block_flush(0)) {
-        printf("block_flush failed\n");
-    }
-
-    WFI();
-    WFI();
-
-    // printf("%s\n", buffer);
-    if (!block_read(buffer2, 0, 512)) {
-        printf("bad\n");
-    }
-
-    WFI();
-    WFI();
-
-    printf("buffer2: 0x%016lx\n", *((u64*) buffer2));
+    printf("%s\n", buffer);
 
     kfree(buffer);
-    kfree(buffer2);
 }
 
 void random(int argc, char** args) {
@@ -345,6 +300,70 @@ void random(int argc, char** args) {
     printf("\n");
     kfree(bytes);
     return;
+}
+
+void read(int argc, char** args) {
+    void* addr;
+    u32 size;
+    u8* data;
+    u32 i;
+
+    if (argc < 4) {
+        printf("usage: read bytes|chars <address> <size>\n");
+        return;
+    }
+
+    addr = (void*) atol(args[2]);
+    size = atoi(args[3]);
+
+    data = kmalloc(size);
+
+    if (!block_read(data, addr, size)) {
+        printf("block_read failed\n");
+        kfree(data);
+        return;
+    }
+
+    WFI();
+
+    for (i = 0; i < size; i++) {
+        if (strcmp("bytes", args[1]) == 0) {
+            printf("%02x ", data[i]);
+        } else {
+            printf("%c", data[i]);
+        }
+
+        if ((i % 64 == 0 && i != 0) || i == size - 1) {
+            printf("\n");
+        }
+    }
+
+    kfree(data);
+}
+
+void write(int argc, char** args) {
+    void* addr;
+    u32 size;
+    u8* data;
+
+    if (argc < 3) {
+        printf("usage: write <address> <string>\n");
+        return;
+    }
+
+    addr = (void*) atol(args[1]);
+    size = strlen(args[2]);
+
+    data = (u8*) args[2];
+
+    if (!block_write(addr, data, size)) {
+        printf("block_write failed\n");
+        return;
+    }
+
+    WFI();
+
+    printf("done.\n");
 }
 
 void start_hart(int argc, char** args) {

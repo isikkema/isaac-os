@@ -106,7 +106,8 @@ typedef struct virtio_device {
    volatile VirtioNotifyCapability* notify;
    volatile VirtioISRCapability* isr;
    volatile void* device_cfg;
-   void** desc_buffers;
+   void** request_info;
+   // void* block_read_dst;
    uint64_t base_notify_offset;
    Mutex lock;
    uint16_t at_idx;

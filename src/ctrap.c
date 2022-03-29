@@ -34,4 +34,6 @@ void c_trap(void) {
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
         }
     }
+
+    WFI();
 }

@@ -56,11 +56,21 @@ typedef struct virtio_block_desc_1 {
    uint64_t sector;
 } VirtioBlockDesc1;
 
-typedef uint8_t* VirtioBlockDesc2;
+typedef uint8_t VirtioBlockDesc2;
 
 typedef struct virtio_block_desc_3 {
    uint8_t status;
 } VirtioBlockDesc3;
+
+typedef struct virtio_block_request_info {
+   VirtioBlockDesc1* desc1;
+   VirtioBlockDesc2* desc2;
+   VirtioBlockDesc3* desc3;
+   void* dst;
+   void* src;
+   void* data;
+   uint32_t size;
+} VirtioBlockRequestInfo;
 
 
 extern VirtioDevice virtio_block_device;
