@@ -267,6 +267,7 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
     VirtioGpuGenericRequest* request;
     void* response;
     VirtioGpuRequestInfo* request_info;
+    VirtioGpuMemEntry* mem_entry;
     void* framebuffer;
 
     if (!virtio_gpu_device.enabled) {
@@ -304,6 +305,9 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
             ((VirtioGpuResourceAttachBackingRequest*) request)->num_entries = 1;
 
             framebuffer = kmalloc(sizeof(VirtioGpuPixel) * width * height);
+            mem_entry = kzalloc(sizeof(VirtioGpuMemEntry));
+            mem_entry->addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
+            mem_entry->length = sizeof(VirtioGpuPixel) * width * height;
 
             response = kzalloc(sizeof(VirtioGpuGenericResponse));
             break;
@@ -349,9 +353,8 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
 
     if (type == VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING) {
         // Mem DESCRIPTOR
-        virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
-        printf("width: %d, height: %d\n", width, height);
-        virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuPixel) * width * height;
+        virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) mem_entry);
+        virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuMemEntry);
         virtio_gpu_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
     
         next_idx = (at_idx + 1) % queue_size;
