@@ -188,7 +188,7 @@ bool gpu_handle_irq() {
     u16 ack_idx;
     u16 queue_size;
     VirtioGpuRequestInfo* req_info;
-    VirtioGpuControlHeader* control_header;
+    VirtioGpuGenericRequest* request;
     VirtioGpuGenericResponse* response;
     VirtioGpuRectangle rect;
     u32 i;
@@ -202,10 +202,10 @@ bool gpu_handle_irq() {
         ack_idx = virtio_gpu_device.ack_idx;
 
         req_info = virtio_gpu_device.request_info[virtio_gpu_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
-        control_header = req_info->control_header;
+        request = req_info->request;
         response = req_info->response;
 
-        switch (control_header->control_type) {
+        switch (request->hdr.control_type) {
             case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
                 if (response->hdr.control_type == VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
                     for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
@@ -224,10 +224,10 @@ bool gpu_handle_irq() {
                 break;
             
             default:
-                printf("gpu_handle_irq: unsupported control type: 0x%04x\n", control_header->control_type);
+                printf("gpu_handle_irq: unsupported control type: 0x%04x\n", request->hdr.control_type);
         }
 
-        kfree(req_info->control_header);
+        kfree(req_info->request);
         kfree(req_info->response);
         kfree(req_info);
 
@@ -244,7 +244,7 @@ bool gpu_request(VirtioGpuControlType type) {
     u32 next_idx;
     u32 queue_size;
     u32* notify_ptr;
-    VirtioGpuControlHeader* control_header;
+    VirtioGpuGenericRequest* request;
     void* response;
     VirtioGpuRequestInfo* request_info;
 
@@ -252,21 +252,22 @@ bool gpu_request(VirtioGpuControlType type) {
         return false;
     }
 
+    mutex_sbi_lock(&virtio_gpu_device.lock);
+
     // Initialize descriptors
     switch (type) {
         case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
+            request = kzalloc(sizeof(VirtioGpuDisplayInfoRequest));
             response = kzalloc(sizeof(VirtioGpuDisplayInfoResponse));
             break;
         
         default:
             printf("gpu_request: unsupported control_type: 0x%04x\n", type);
+            mutex_unlock(&virtio_gpu_device.lock);
             return false;
     }
 
-    control_header = kzalloc(sizeof(VirtioGpuControlHeader));
-    control_header->control_type = VIRTIO_GPU_CMD_GET_DISPLAY_INFO;
-
-    mutex_sbi_lock(&virtio_gpu_device.lock);
+    request->hdr.control_type = type;
 
     at_idx = virtio_gpu_device.at_idx;
     first_idx = at_idx;
@@ -274,7 +275,7 @@ bool gpu_request(VirtioGpuControlType type) {
 
     // Add descriptors to queue
     // DESCRIPTOR 1
-    virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) control_header);
+    virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) request);
     virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuControlHeader);
     virtio_gpu_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
 
@@ -302,7 +303,7 @@ bool gpu_request(VirtioGpuControlType type) {
 
     // Add request info for later use in driver
     request_info = kzalloc(sizeof(VirtioGpuRequestInfo));
-    request_info->control_header = control_header;
+    request_info->request = request;
     request_info->response = response;
     virtio_gpu_device.request_info[first_idx] = request_info;
 

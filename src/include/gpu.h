@@ -21,14 +21,6 @@ typedef struct virtio_gpu_config {
    uint32_t  reserved;
 } VirtioGpuDeviceCapability;
 
-typedef struct virtio_gpu_control_header {
-   uint32_t control_type;
-   uint32_t flags;
-   uint64_t fence_id;
-   uint32_t context_id;
-   uint32_t padding;
-} VirtioGpuControlHeader;
-
 typedef enum virtio_gpu_control_type {
    /* 2D Commands */
    VIRTIO_GPU_CMD_GET_DISPLAY_INFO = 0x0100,
@@ -63,12 +55,28 @@ typedef enum virtio_gpu_control_type {
    VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER,
 } VirtioGpuControlType;
 
+typedef struct virtio_gpu_control_header {
+   VirtioGpuControlType control_type;
+   uint32_t flags;
+   uint64_t fence_id;
+   uint32_t context_id;
+   uint32_t padding;
+} VirtioGpuControlHeader;
+
 typedef struct virtio_gpu_rectangle {
    uint32_t x;
    uint32_t y;
    uint32_t width;
    uint32_t height;
 } VirtioGpuRectangle;
+
+typedef struct virtio_gpu_display_generic_request {
+   VirtioGpuControlHeader hdr;
+} VirtioGpuGenericRequest;
+
+typedef struct virtio_gpu_display_info_request {
+   VirtioGpuControlHeader hdr;
+} VirtioGpuDisplayInfoRequest;
 
 typedef struct virtio_gpu_generic_response {
    VirtioGpuControlHeader hdr;
@@ -84,7 +92,7 @@ typedef struct virtio_gpu_display_info_response {
 } VirtioGpuDisplayInfoResponse;
 
 typedef struct virtio_gpu_request_info {
-   VirtioGpuControlHeader* control_header;
+   VirtioGpuGenericRequest* request;
    VirtioGpuGenericResponse* response;
 } VirtioGpuRequestInfo;
 
