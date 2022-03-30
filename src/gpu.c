@@ -8,11 +8,13 @@
 
 
 VirtioDevice virtio_gpu_device;
+uint32_t virtio_gpu_avail_resource_id;
 
 
 bool virtio_gpu_driver(volatile EcamHeader* ecam) {
     volatile Capability* cap;
 
+    virtio_gpu_avail_resource_id = 1;
     virtio_gpu_device.lock = MUTEX_UNLOCKED;
 
     // Iterate through the capabilities if enabled
@@ -138,6 +140,7 @@ bool virtio_gpu_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioP
     cfg->queue_device = mmu_translate(kernel_mmu_table, (u64) virtio_gpu_device.queue_device);
 
     virtio_gpu_device.request_info = kzalloc(queue_size * sizeof(void*));
+    virtio_gpu_device.device_info = kzalloc(sizeof(VirtioGpuDeviceInfo));
 
     // Enable device
     cfg->queue_enable = 1;
@@ -208,17 +211,30 @@ bool gpu_handle_irq() {
         switch (request->hdr.control_type) {
             case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
                 if (response->hdr.control_type == VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
+                    printf("gpu_handle_irq: get display info OK!\n");
+
                     for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
                         if (!((VirtioGpuDisplayInfoResponse*) response)->displays[i].enabled) {
                             continue;
                         }
 
                         rect = ((VirtioGpuDisplayInfoResponse*) response)->displays[i].rect;
-                        printf("x: %d, y: %d, width: %d, height: %d\n", rect.x, rect.y, rect.width, rect.height);
+                        ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[i].rect = rect;
+                        ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[i].enabled = true;
                     }
                 } else {
                     printf("gpu_handle_irq: non-OK_DISPLAY_INFO control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
                     rv = false;
+                }
+
+                break;
+            
+            case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
+                if (response->hdr.control_type != VIRTIO_GPU_RESP_OK_NODATA) {
+                    printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
+                    rv = false;
+                } else {
+                    printf("gpu_handle_irq: resource create 2d OK!\n");
                 }
 
                 break;
@@ -261,6 +277,17 @@ bool gpu_request(VirtioGpuControlType type) {
             response = kzalloc(sizeof(VirtioGpuDisplayInfoResponse));
             break;
         
+        case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
+            request = kzalloc(sizeof(VirtioGpuResourceCreate2dRequest));
+            ((VirtioGpuResourceCreate2dRequest*) request)->width = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[0].rect.width;
+            ((VirtioGpuResourceCreate2dRequest*) request)->height = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[0].rect.height;
+            ((VirtioGpuResourceCreate2dRequest*) request)->format = R8G8B8A8_UNORM;
+            ((VirtioGpuResourceCreate2dRequest*) request)->resource_id = virtio_gpu_avail_resource_id;
+            virtio_gpu_avail_resource_id++;
+
+            response = kzalloc(sizeof(VirtioGpuGenericResponse));
+            break;
+        
         default:
             printf("gpu_request: unsupported control_type: 0x%04x\n", type);
             mutex_unlock(&virtio_gpu_device.lock);
@@ -276,8 +303,20 @@ bool gpu_request(VirtioGpuControlType type) {
     // Add descriptors to queue
     // DESCRIPTOR 1
     virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) request);
-    virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuControlHeader);
     virtio_gpu_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
+    switch (type) {
+        case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuDisplayInfoRequest);
+            break;
+        
+        case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuResourceCreate2dRequest);
+            break;
+        
+        default:
+            printf("UNREACHABLE!\n");
+            return false;
+    }
 
     // Increment at_idx and set next to the incremented at_idx
     next_idx = (at_idx + 1) % queue_size;
@@ -291,6 +330,10 @@ bool gpu_request(VirtioGpuControlType type) {
     switch (type) {
         case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuDisplayInfoResponse);
+            break;
+        
+        case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuGenericResponse);
             break;
         
         default:
@@ -332,14 +375,30 @@ bool gpu_get_display_info() {
     return gpu_request(VIRTIO_GPU_CMD_GET_DISPLAY_INFO);
 }
 
+bool gpu_resource_create_2d() {
+    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_CREATE_2D);
+}
+
+bool gpu_resource_attach_backing() {
+    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING);
+}
+
 bool gpu_init() {
     if (!gpu_get_display_info()) {
         return false;
     }
 
     WFI();
+   
+    if (!gpu_resource_create_2d()) {
+        return false;
+    }
 
+    WFI();
 
+    if (!gpu_resource_attach_backing()) {
+        return false;
+    }
 
     return true;
 }

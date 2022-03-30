@@ -70,6 +70,17 @@ typedef struct virtio_gpu_rectangle {
    uint32_t height;
 } VirtioGpuRectangle;
 
+typedef enum virtio_gpu_formats {
+   B8G8R8A8_UNORM = 1,
+   B8G8R8X8_UNORM = 2,
+   A8R8G8B8_UNORM = 3,
+   X8R8G8B8_UNORM = 4,
+   R8G8B8A8_UNORM = 67,
+   X8B8G8R8_UNORM = 68,
+   A8B8G8R8_UNORM = 121,
+   R8G8B8X8_UNORM = 134,
+} VirtioGpuFormats;
+
 typedef struct virtio_gpu_display_generic_request {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericRequest;
@@ -78,12 +89,32 @@ typedef struct virtio_gpu_display_info_request {
    VirtioGpuControlHeader hdr;
 } VirtioGpuDisplayInfoRequest;
 
+typedef struct virtio_gpu_resource_create_2d_request {
+   VirtioGpuControlHeader hdr;
+   uint32_t resource_id;
+   uint32_t format;
+   uint32_t width;
+   uint32_t height;
+} VirtioGpuResourceCreate2dRequest;
+
+typedef struct virtio_gpu_resource_attach_backing_request {
+   VirtioGpuControlHeader hdr;
+   uint32_t resource_id;
+   uint32_t num_entries;
+} VirtioGpuResourceAttachBackingRequest;
+
+typedef struct virtio_gpu_mem_entry {
+   uint64_t addr;
+   uint32_t length;
+   uint32_t padding;
+} VirtioGpuMemEntry;
+
 typedef struct virtio_gpu_generic_response {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericResponse;
 
 typedef struct virtio_gpu_display_info_response {
-   VirtioGpuControlHeader hdr;  /* VIRTIO_GPU_RESP_OK_DISPLAY_INFO */
+   VirtioGpuControlHeader hdr;
    struct GpuDisplay {
        VirtioGpuRectangle rect;
        uint32_t enabled;
@@ -95,6 +126,13 @@ typedef struct virtio_gpu_request_info {
    VirtioGpuGenericRequest* request;
    VirtioGpuGenericResponse* response;
 } VirtioGpuRequestInfo;
+
+typedef struct virtio_gpu_device_info {
+   struct {
+      VirtioGpuRectangle rect;
+      bool enabled;
+   } displays[VIRTIO_GPU_MAX_SCANOUTS];
+} VirtioGpuDeviceInfo;
 
 
 extern VirtioDevice virtio_gpu_device;
