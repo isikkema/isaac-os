@@ -70,6 +70,10 @@ typedef struct virtio_gpu_rectangle {
    uint32_t height;
 } VirtioGpuRectangle;
 
+typedef struct virtio_gpu_generic_response {
+   VirtioGpuControlHeader hdr;
+} VirtioGpuGenericResponse;
+
 typedef struct virtio_gpu_display_info_response {
    VirtioGpuControlHeader hdr;  /* VIRTIO_GPU_RESP_OK_DISPLAY_INFO */
    struct GpuDisplay {
@@ -81,7 +85,7 @@ typedef struct virtio_gpu_display_info_response {
 
 typedef struct virtio_gpu_request_info {
    VirtioGpuControlHeader* control_header;
-   VirtioGpuDisplayInfoResponse* display_response;
+   VirtioGpuGenericResponse* response;
 } VirtioGpuRequestInfo;
 
 
