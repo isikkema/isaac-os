@@ -187,10 +187,10 @@ bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile Virti
 bool block_handle_irq() {
     u16 ack_idx;
     u16 queue_size;
-    VirtioBlockRequestInfo* block_req_info;
-    VirtioBlockDesc1* block_desc1;
-    VirtioBlockDesc3* block_desc3;
-    volatile VirtioBlockDeviceCapability* block_device_cfg;
+    VirtioBlockRequestInfo* req_info;
+    VirtioBlockDescHeader* desc_header;
+    VirtioBlockDescStatus* desc_status;
+    volatile VirtioBlockDeviceCapability* device_cfg;
     bool rv;
 
     rv = true;
@@ -200,28 +200,28 @@ bool block_handle_irq() {
     while (virtio_block_device.ack_idx != virtio_block_device.queue_device->idx) {
         ack_idx = virtio_block_device.ack_idx;
 
-        block_req_info = virtio_block_device.request_info[virtio_block_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
-        block_desc1 = block_req_info->desc1;
-        block_desc3 = block_req_info->desc3;
+        req_info = virtio_block_device.request_info[virtio_block_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
+        desc_header = req_info->desc_header;
+        desc_status = req_info->desc_status;
 
-        if (block_desc3->status != VIRTIO_BLK_S_OK) {
-            printf("virtio_handle_irq: block: non-OK status: %d, idx: %d\n", block_desc3->status, ack_idx % queue_size);
+        if (desc_status->status != VIRTIO_BLK_S_OK) {
+            printf("virtio_handle_irq: block: non-OK status: %d, idx: %d\n", desc_status->status, ack_idx % queue_size);
             rv = false;
-        } else if (block_desc1->type == VIRTIO_BLK_T_IN) {  // If read request
+        } else if (desc_header->type == VIRTIO_BLK_T_IN) {  // If read request
             // Copy exact chunk needed from buffer to dst
-            block_device_cfg = virtio_block_device.device_cfg;
-            memcpy(block_req_info->dst, block_req_info->data + ((u64) block_req_info->src % block_device_cfg->blk_size), block_req_info->size);
+            device_cfg = virtio_block_device.device_cfg;
+            memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
 
-        switch (block_desc1->type) {
+        switch (desc_header->type) {
             case VIRTIO_BLK_T_IN:
             case VIRTIO_BLK_T_OUT:
-                kfree(block_req_info->data);
-                kfree(block_req_info);
+                kfree(req_info->data);
+                kfree(req_info);
         }                
 
-        kfree(block_desc1);
-        kfree(block_desc3);
+        kfree(desc_header);
+        kfree(desc_status);
 
         virtio_block_device.ack_idx++;
     }
@@ -236,9 +236,9 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     u32 next_idx;
     u32 queue_size;
     u32* notify_ptr;
-    VirtioBlockDesc1* desc1;
-    VirtioBlockDesc2* desc2;
-    VirtioBlockDesc3* desc3;
+    VirtioBlockDescHeader* desc_header;
+    VirtioBlockDescData* desc_data;
+    VirtioBlockDescStatus* desc_status;
     volatile VirtioBlockDeviceCapability* cfg;
     u32 low_sector;
     u32 high_sector;
@@ -267,9 +267,9 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     }
 
     // Initialize descriptors
-    desc1 = kzalloc(sizeof(VirtioBlockDesc1));
-    desc1->type = type;
-    desc1->sector = low_sector;
+    desc_header = kzalloc(sizeof(VirtioBlockDescHeader));
+    desc_header->type = type;
+    desc_header->sector = low_sector;
 
     // If read or write
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
@@ -293,11 +293,11 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
             memcpy(data + (u64) dst % cfg->blk_size, src, size);
         }
 
-        desc2 = (u8*) mmu_translate(kernel_mmu_table, (u64) data);
+        desc_data = (u8*) mmu_translate(kernel_mmu_table, (u64) data);
     }
 
-    desc3 = kzalloc(sizeof(VirtioBlockDesc3));
-    desc3->status = VIRTIO_BLK_S_INCOMP;
+    desc_status = kzalloc(sizeof(VirtioBlockDescStatus));
+    desc_status->status = VIRTIO_BLK_S_INCOMP;
 
     at_idx = virtio_block_device.at_idx;
     first_idx = at_idx;
@@ -305,8 +305,8 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
 
     // Add descriptors to queue
     // DESCRIPTOR 1
-    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc1);
-    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDesc1);
+    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_header);
+    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDescHeader);
     virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
 
     // Increment at_idx and set next to the incremented at_idx
@@ -316,7 +316,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
 
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
         // DESCRIPTOR 2
-        virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc2);
+        virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_data);
         virtio_block_device.queue_desc[at_idx].len = aligned_size;
         virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
         if (type == VIRTIO_BLK_T_IN) {
@@ -329,8 +329,8 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     }
 
     // DESCRIPTOR 3
-    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc3);
-    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDesc3);
+    virtio_block_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_status);
+    virtio_block_device.queue_desc[at_idx].len = sizeof(VirtioBlockDescStatus);
     virtio_block_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
     virtio_block_device.queue_desc[at_idx].next = 0;
 
@@ -344,9 +344,9 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
         request_info->src = src;
         request_info->data = data;
         request_info->size = size;
-        request_info->desc1 = desc1;
-        request_info->desc2 = desc2;
-        request_info->desc3 = desc3;
+        request_info->desc_header = desc_header;
+        request_info->desc_data = desc_data;
+        request_info->desc_status = desc_status;
         virtio_block_device.request_info[first_idx] = request_info;
     }
 

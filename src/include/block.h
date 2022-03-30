@@ -50,22 +50,22 @@ typedef struct virtio_blk_config {
    uint8_t unused1[3];
 } VirtioBlockDeviceCapability;
 
-typedef struct virtio_block_desc_1 {
+typedef struct virtio_block_desc_header {
    uint32_t type;
    uint32_t reserved;
    uint64_t sector;
-} VirtioBlockDesc1;
+} VirtioBlockDescHeader;
 
-typedef uint8_t VirtioBlockDesc2;
+typedef uint8_t VirtioBlockDescData;
 
-typedef struct virtio_block_desc_3 {
+typedef struct virtio_block_desc_status {
    uint8_t status;
-} VirtioBlockDesc3;
+} VirtioBlockDescStatus;
 
 typedef struct virtio_block_request_info {
-   VirtioBlockDesc1* desc1;
-   VirtioBlockDesc2* desc2;
-   VirtioBlockDesc3* desc3;
+   VirtioBlockDescHeader* desc_header;
+   VirtioBlockDescData* desc_data;
+   VirtioBlockDescStatus* desc_status;
    void* dst;
    void* src;
    void* data;
