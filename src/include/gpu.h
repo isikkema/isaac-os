@@ -81,6 +81,19 @@ typedef enum virtio_gpu_formats {
    R8G8B8X8_UNORM = 134,
 } VirtioGpuFormats;
 
+typedef struct virtio_gpu_pixel {
+   uint8_t r;
+   uint8_t g;
+   uint8_t b;
+   uint8_t a;
+} VirtioGpuPixel;
+
+typedef struct virtio_gpu_mem_entry {
+   uint64_t addr;
+   uint32_t length;
+   uint32_t padding;
+} VirtioGpuMemEntry;
+
 typedef struct virtio_gpu_display_generic_request {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericRequest;
@@ -103,12 +116,6 @@ typedef struct virtio_gpu_resource_attach_backing_request {
    uint32_t num_entries;
 } VirtioGpuResourceAttachBackingRequest;
 
-typedef struct virtio_gpu_mem_entry {
-   uint64_t addr;
-   uint32_t length;
-   uint32_t padding;
-} VirtioGpuMemEntry;
-
 typedef struct virtio_gpu_generic_response {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericResponse;
@@ -130,6 +137,7 @@ typedef struct virtio_gpu_request_info {
 typedef struct virtio_gpu_device_info {
    struct {
       VirtioGpuRectangle rect;
+      uint32_t resource_id;
       bool enabled;
    } displays[VIRTIO_GPU_MAX_SCANOUTS];
 } VirtioGpuDeviceInfo;
