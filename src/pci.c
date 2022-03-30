@@ -7,6 +7,7 @@
 #include <kmalloc.h>
 #include <rng.h>
 #include <block.h>
+#include <gpu.h>
 
 
 DriverList* driver_head;
@@ -280,6 +281,11 @@ bool pci_init_drivers() {
 
     // block
     if (!pci_register_driver(0x1af4, 0x1042, virtio_block_driver)) {
+        return false;
+    }
+
+    // gpu
+    if (!pci_register_driver(0x1af4, 0x1050, virtio_gpu_driver)) {
         return false;
     }
 

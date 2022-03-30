@@ -13,6 +13,7 @@
 #include <rng.h>
 #include <csr.h>
 #include <block.h>
+#include <gpu.h>
 
 
 char blocking_getchar() {
@@ -254,18 +255,9 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    u8* buffer;
-    
-    buffer = kzalloc(11);
-    memset(buffer, 'a', 10);
-
-    printf("%s\n", buffer);
-
-    memcpy(buffer, "bbbbbccccc", 5);
-
-    printf("%s\n", buffer);
-
-    kfree(buffer);
+    if (!gpu_init()) {
+        printf("gpu_init failed\n");
+    }
 }
 
 void random(int argc, char** args) {
