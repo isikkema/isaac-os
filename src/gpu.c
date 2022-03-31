@@ -569,6 +569,23 @@ bool gpu_init() {
 
     WFI();
 
+    printf("filling framebuffer again...\n");
+    framebuffer_rectangle_fill(framebuffer, width, height, rect, (VirtioGpuPixel) {0, 255, 255, 255});
+
+    printf("transferring to host a little...\n");
+    if (!gpu_transfer_to_host_2d((VirtioGpuRectangle) {rect.width/4, rect.height/4, rect.width/2, rect.height/2}, 0, fb_resource_id)) {
+        return false;
+    }
+
+    WFI();
+
+    printf("flushing resource a little...\n");
+    if (!gpu_resource_flush((VirtioGpuRectangle) {rect.width/4, rect.height/4, rect.width/2, rect.height/2}, fb_resource_id)) {
+        return false;
+    }
+
+    WFI();
+
     printf("done\n");
 
     return true;
