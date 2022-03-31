@@ -258,19 +258,14 @@ bool gpu_handle_irq() {
 }
 
 
-bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
+bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry) {
     u32 at_idx;
     u32 first_idx;
     u32 next_idx;
     u32 queue_size;
-    u32 width;
-    u32 height;
     u32* notify_ptr;
-    VirtioGpuGenericRequest* request;
     void* response;
     VirtioGpuRequestInfo* request_info;
-    VirtioGpuMemEntry* mem_entry;
-    void* framebuffer;
 
     if (!virtio_gpu_device.enabled) {
         return false;
@@ -278,77 +273,25 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
 
     mutex_sbi_lock(&virtio_gpu_device.lock);
 
-    width = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.width;
-    height = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.height;
-
     // Initialize descriptors
-    switch (type) {
+    switch (request->hdr.control_type) {
         case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
-            request = kzalloc(sizeof(VirtioGpuDisplayInfoRequest));
             response = kzalloc(sizeof(VirtioGpuDisplayInfoResponse));
             break;
         
         case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
-            request = kzalloc(sizeof(VirtioGpuResourceCreate2dRequest));
-            ((VirtioGpuResourceCreate2dRequest*) request)->width = width;
-            ((VirtioGpuResourceCreate2dRequest*) request)->height = height;
-            ((VirtioGpuResourceCreate2dRequest*) request)->format = R8G8B8A8_UNORM;
-            ((VirtioGpuResourceCreate2dRequest*) request)->resource_id = virtio_gpu_avail_resource_id;
-            ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id = virtio_gpu_avail_resource_id;
-            virtio_gpu_avail_resource_id++;
-
-            response = kzalloc(sizeof(VirtioGpuGenericResponse));
-
-            break;
-        
         case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
-            request = kzalloc(sizeof(VirtioGpuResourceAttachBackingRequest));
-            ((VirtioGpuResourceAttachBackingRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
-            ((VirtioGpuResourceAttachBackingRequest*) request)->num_entries = 1;
-
-            framebuffer = kmalloc(sizeof(VirtioGpuPixel) * width * height);
-            ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].framebuffer = framebuffer;
-
-            mem_entry = kzalloc(sizeof(VirtioGpuMemEntry));
-            mem_entry->addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
-            mem_entry->length = sizeof(VirtioGpuPixel) * width * height;
-
-            response = kzalloc(sizeof(VirtioGpuGenericResponse));
-            break;
-        
         case VIRTIO_GPU_CMD_SET_SCANOUT:
-            request = kzalloc(sizeof(VirtioGpuSetScanoutRequest));
-            ((VirtioGpuSetScanoutRequest*) request)->scanout_id = scanout_id;
-            ((VirtioGpuSetScanoutRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
-            ((VirtioGpuSetScanoutRequest*) request)->rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
-
-            response = kzalloc(sizeof(VirtioGpuGenericResponse));
-            break;
-        
         case VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D:
-            request = kzalloc(sizeof(VirtioGpuTransferToHost2dRequest));
-            ((VirtioGpuTransferToHost2dRequest*) request)->offset = 0;
-            ((VirtioGpuTransferToHost2dRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
-            ((VirtioGpuTransferToHost2dRequest*) request)->rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
-
-            response = kzalloc(sizeof(VirtioGpuGenericResponse));
-            break;
-        
         case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
-            request = kzalloc(sizeof(VirtioGpuResourceFlushRequest));
-            ((VirtioGpuResourceFlushRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
-            ((VirtioGpuResourceFlushRequest*) request)->rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
-
             response = kzalloc(sizeof(VirtioGpuGenericResponse));
             break;
         
         default:
-            printf("gpu_request: unsupported control_type: 0x%04x\n", type);
+            printf("gpu_request: unsupported control_type: 0x%04x\n", request->hdr.control_type);
             mutex_unlock(&virtio_gpu_device.lock);
             return false;
     }
-
-    request->hdr.control_type = type;
 
     at_idx = virtio_gpu_device.at_idx;
     first_idx = at_idx;
@@ -358,9 +301,9 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
     // Request DESCRIPTOR
     virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) request);
     virtio_gpu_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
-    switch (type) {
+    switch (request->hdr.control_type) {
         case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
-            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuDisplayInfoRequest);
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuGenericRequest);
             break;
         
         case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
@@ -393,7 +336,7 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
     virtio_gpu_device.queue_desc[at_idx].next = next_idx;
     at_idx = next_idx;
 
-    if (type == VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING) {
+    if (request->hdr.control_type == VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING) {
         // Mem DESCRIPTOR
         virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) mem_entry);
         virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuMemEntry);
@@ -408,7 +351,7 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
     virtio_gpu_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) response);
     virtio_gpu_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
     virtio_gpu_device.queue_desc[at_idx].next = 0;
-    switch (type) {
+    switch (request->hdr.control_type) {
         case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuDisplayInfoResponse);
             break;
@@ -457,52 +400,102 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
 }
 
 bool gpu_get_display_info() {
-    return gpu_request(VIRTIO_GPU_CMD_GET_DISPLAY_INFO, 0);
+    VirtioGpuGenericRequest* request;
+
+    request = kzalloc(sizeof(VirtioGpuGenericRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_GET_DISPLAY_INFO;
+    
+    return gpu_request(request, NULL);
 }
 
-bool gpu_resource_create_2d(uint32_t scanout_id) {
-    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_CREATE_2D, scanout_id);
+uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_t height) {
+    VirtioGpuResourceCreate2dRequest* request;
+
+    request = kzalloc(sizeof(VirtioGpuResourceCreate2dRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_RESOURCE_CREATE_2D;
+    request->width = width;
+    request->height = height;
+    request->format = format;
+    request->resource_id = virtio_gpu_avail_resource_id;
+
+    virtio_gpu_avail_resource_id++;
+    
+    if (gpu_request((VirtioGpuGenericRequest*) request, NULL)) {
+        return request->resource_id;
+    } else {
+        return -1;
+    }
 }
 
-bool gpu_resource_attach_backing(uint32_t scanout_id) {
-    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING, scanout_id);
+VirtioGpuPixel* gpu_resource_attach_backing(uint32_t resource_id, uint32_t width, uint32_t height) {
+    VirtioGpuResourceAttachBackingRequest* request;
+    VirtioGpuPixel* framebuffer;
+    VirtioGpuMemEntry* mem_entry;
+
+    request = kzalloc(sizeof(VirtioGpuResourceAttachBackingRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING;
+    request->resource_id = resource_id;
+    request->num_entries = 1;
+
+    framebuffer = kmalloc(sizeof(VirtioGpuPixel) * width * height);
+
+    mem_entry = kzalloc(sizeof(VirtioGpuMemEntry));
+    mem_entry->addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
+    mem_entry->length = sizeof(VirtioGpuPixel) * width * height;
+    
+    if (gpu_request((VirtioGpuGenericRequest*) request, mem_entry)) {
+        return framebuffer;
+    } else {
+        return NULL;
+    }
 }
 
-bool gpu_set_scanout(uint32_t scanout_id) {
-    return gpu_request(VIRTIO_GPU_CMD_SET_SCANOUT, scanout_id);
+bool gpu_set_scanout(VirtioGpuRectangle rect, uint32_t scanout_id, uint32_t resource_id) {
+    VirtioGpuSetScanoutRequest* request;
+
+    request = kzalloc(sizeof(VirtioGpuSetScanoutRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_SET_SCANOUT;
+    request->rect = rect;
+    request->scanout_id = scanout_id;
+    request->resource_id = resource_id;
+    
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
 }
 
-bool gpu_transfer_to_host_2d(uint32_t scanout_id) {
-    return gpu_request(VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D, scanout_id);
+bool gpu_transfer_to_host_2d(VirtioGpuRectangle rect, uint64_t offset, uint32_t resource_id) {
+    VirtioGpuTransferToHost2dRequest* request;
+
+    request = kzalloc(sizeof(VirtioGpuTransferToHost2dRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D;
+    request->rect = rect;
+    request->offset = offset;
+    request->resource_id = resource_id;
+
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
 }
 
-bool gpu_resource_flush(uint32_t scanout_id) {
-    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_FLUSH, scanout_id);
+bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id) {
+    VirtioGpuResourceFlushRequest* request;
+
+    request = kzalloc(sizeof(VirtioGpuResourceFlushRequest));
+    request->hdr.control_type = VIRTIO_GPU_CMD_RESOURCE_FLUSH;
+    request->rect = rect;
+    request->resource_id = resource_id;
+
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
 }
 
-bool framebuffer_rectangle_fill(uint32_t scanout_id, uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, VirtioGpuPixel pixel) {
+bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, uint32_t width, uint32_t height, VirtioGpuRectangle rect, VirtioGpuPixel pixel) {
     u32 i;
     u32 j;
-    VirtioGpuPixel* framebuffer;
-    u32 width;
-    u32 height;
 
-    if (x1 > x2 || y1 > y2) {
-        printf("top-left must be smaller than bottom-right\n");
+    if (rect.x + rect.width > width || rect.y + rect.height > height) {
+        printf("Rectangle must within display size\n");
         return false;
     }
 
-    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].framebuffer;
-    width = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.width;
-    height = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.height;
-
-    if (x2 > width || y2 > height) {
-        printf("bottom-right must be smaller than display size\n");
-        return false;
-    }
-
-    for (i = y1; i < y2; i++) {
-        for (j = x1; j < x2; j++) {
+    for (i = rect.y; i < rect.y + rect.height; i++) {
+        for (j = rect.x; j < rect.x + rect.width; j++) {
             framebuffer[i * width + j] = pixel;
         }
     }
@@ -511,46 +504,66 @@ bool framebuffer_rectangle_fill(uint32_t scanout_id, uint32_t x1, uint32_t y1, u
 }
 
 bool gpu_init() {
+    u32 width;
+    u32 height;
+    u32 scanout_id;
+    VirtioGpuDeviceInfo* gpu_info;
+    u32 fb_resource_id;
+    VirtioGpuPixel* framebuffer;
+    VirtioGpuRectangle rect;
+
     printf("getting display info...\n");
     if (!gpu_get_display_info()) {
         return false;
     }
 
     WFI();
-   
+
+    gpu_info = virtio_gpu_device.device_info;
+    scanout_id = 0;
+    width = gpu_info->displays[scanout_id].rect.width;
+    height = gpu_info->displays[scanout_id].rect.height;
+
     printf("creating 2D resource...\n");
-    if (!gpu_resource_create_2d(0)) {
+    fb_resource_id = gpu_resource_create_2d(R8G8B8A8_UNORM, width, height);
+    if (fb_resource_id == (u32) -1) {
         return false;
     }
 
     WFI();
 
     printf("attaching resource...\n");
-    if (!gpu_resource_attach_backing(0)) {
+    framebuffer = gpu_resource_attach_backing(fb_resource_id, width, height);
+    if (framebuffer == NULL) {
         return false;
     }
 
     WFI();
 
+    rect.x = 0;
+    rect.y = 0;
+    rect.width = width;
+    rect.height = height;
+
     printf("setting scanout...\n");
-    if (!gpu_set_scanout(0)) {
+    if (!gpu_set_scanout(rect, scanout_id, fb_resource_id)) {
         return false;
     }
 
     WFI();
 
     printf("filling framebuffer...\n");
-    framebuffer_rectangle_fill(0, 0, 0, 500, 400, (VirtioGpuPixel) {255, 0, 0, 255});
+    framebuffer_rectangle_fill(framebuffer, width, height, rect, (VirtioGpuPixel) {255, 0, 0, 255});
 
     printf("transferring to host...\n");
-    if (!gpu_transfer_to_host_2d(0)) {
+    if (!gpu_transfer_to_host_2d(rect, 0, fb_resource_id)) {
         return false;
     }
 
     WFI();
 
     printf("flushing resource...\n");
-    if (!gpu_resource_flush(0)) {
+    if (!gpu_resource_flush(rect, fb_resource_id)) {
         return false;
     }
 

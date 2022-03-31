@@ -105,7 +105,7 @@ typedef struct virtio_gpu_display_info_request {
 typedef struct virtio_gpu_resource_create_2d_request {
    VirtioGpuControlHeader hdr;
    uint32_t resource_id;
-   uint32_t format;
+   VirtioGpuFormats format;
    uint32_t width;
    uint32_t height;
 } VirtioGpuResourceCreate2dRequest;
