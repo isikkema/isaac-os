@@ -217,9 +217,9 @@ bool rng_fill(void* buffer, u16 size) {
         virtio_rng_device.notify->notify_off_multiplier
     );
     
-    *notify_ptr = 0;
-
     mutex_unlock(&virtio_rng_device.lock);
+
+    *notify_ptr = 0;
 
     return true;
 }
