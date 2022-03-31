@@ -233,6 +233,7 @@ bool gpu_handle_irq() {
             case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
             case VIRTIO_GPU_CMD_SET_SCANOUT:
             case VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D:
+            case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
                 if (response->hdr.control_type != VIRTIO_GPU_RESP_OK_NODATA) {
                     printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
                     rv = false;
@@ -333,6 +334,14 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
             response = kzalloc(sizeof(VirtioGpuGenericResponse));
             break;
         
+        case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
+            request = kzalloc(sizeof(VirtioGpuResourceFlushRequest));
+            ((VirtioGpuResourceFlushRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
+            ((VirtioGpuResourceFlushRequest*) request)->rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
+
+            response = kzalloc(sizeof(VirtioGpuGenericResponse));
+            break;
+        
         default:
             printf("gpu_request: unsupported control_type: 0x%04x\n", type);
             mutex_unlock(&virtio_gpu_device.lock);
@@ -370,6 +379,10 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuTransferToHost2dRequest);
             break;
         
+        case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuResourceFlushRequest);
+            break;
+        
         default:
             printf("UNREACHABLE!\n");
             return false;
@@ -404,6 +417,7 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
         case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
         case VIRTIO_GPU_CMD_SET_SCANOUT:
         case VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D:
+        case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuGenericResponse);
             break;
         
@@ -460,6 +474,10 @@ bool gpu_set_scanout(uint32_t scanout_id) {
 
 bool gpu_transfer_to_host_2d(uint32_t scanout_id) {
     return gpu_request(VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D, scanout_id);
+}
+
+bool gpu_resource_flush(uint32_t scanout_id) {
+    return gpu_request(VIRTIO_GPU_CMD_RESOURCE_FLUSH, scanout_id);
 }
 
 bool framebuffer_rectangle_fill(uint32_t scanout_id, uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, VirtioGpuPixel pixel) {
@@ -526,6 +544,13 @@ bool gpu_init() {
 
     printf("transferring to host...\n");
     if (!gpu_transfer_to_host_2d(0)) {
+        return false;
+    }
+
+    WFI();
+
+    printf("flushing resource...\n");
+    if (!gpu_resource_flush(0)) {
         return false;
     }
 
