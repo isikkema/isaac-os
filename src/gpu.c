@@ -211,8 +211,6 @@ bool gpu_handle_irq() {
         switch (request->hdr.control_type) {
             case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
                 if (response->hdr.control_type == VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
-                    printf("gpu_handle_irq: OK!\n");
-
                     for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
                         if (!((VirtioGpuDisplayInfoResponse*) response)->displays[i].enabled) {
                             continue;
@@ -237,10 +235,7 @@ bool gpu_handle_irq() {
                 if (response->hdr.control_type != VIRTIO_GPU_RESP_OK_NODATA) {
                     printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
                     rv = false;
-                } else {
-                    printf("gpu_handle_irq: OK!\n");
                 }
-
                 break;
             
             default:
@@ -485,18 +480,18 @@ bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id) {
     return gpu_request((VirtioGpuGenericRequest*) request, NULL);
 }
 
-bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, uint32_t width, uint32_t height, VirtioGpuRectangle rect, VirtioGpuPixel pixel) {
+bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, VirtioGpuRectangle screen_rect, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel) {
     u32 i;
     u32 j;
 
-    if (rect.x + rect.width > width || rect.y + rect.height > height) {
-        printf("Rectangle must within display size\n");
+    if (fill_rect.x + fill_rect.width > screen_rect.width || fill_rect.y + fill_rect.height > screen_rect.height) {
+        printf("Rectangle must be within display size\n");
         return false;
     }
 
-    for (i = rect.y; i < rect.y + rect.height; i++) {
-        for (j = rect.x; j < rect.x + rect.width; j++) {
-            framebuffer[i * width + j] = pixel;
+    for (i = fill_rect.y; i < fill_rect.y + fill_rect.height; i++) {
+        for (j = fill_rect.x; j < fill_rect.x + fill_rect.width; j++) {
+            framebuffer[i * screen_rect.width + j] = pixel;
         }
     }
 
@@ -510,9 +505,8 @@ bool gpu_init() {
     VirtioGpuDeviceInfo* gpu_info;
     u32 fb_resource_id;
     VirtioGpuPixel* framebuffer;
-    VirtioGpuRectangle rect;
+    VirtioGpuRectangle screen_rect;
 
-    printf("getting display info...\n");
     if (!gpu_get_display_info()) {
         return false;
     }
@@ -524,7 +518,6 @@ bool gpu_init() {
     width = gpu_info->displays[scanout_id].rect.width;
     height = gpu_info->displays[scanout_id].rect.height;
 
-    printf("creating 2D resource...\n");
     fb_resource_id = gpu_resource_create_2d(R8G8B8A8_UNORM, width, height);
     if (fb_resource_id == (u32) -1) {
         return false;
@@ -532,7 +525,6 @@ bool gpu_init() {
 
     WFI();
 
-    printf("attaching resource...\n");
     framebuffer = gpu_resource_attach_backing(fb_resource_id, width, height);
     if (framebuffer == NULL) {
         return false;
@@ -540,53 +532,19 @@ bool gpu_init() {
 
     WFI();
 
-    rect.x = 0;
-    rect.y = 0;
-    rect.width = width;
-    rect.height = height;
+    screen_rect.x = 0;
+    screen_rect.y = 0;
+    screen_rect.width = width;
+    screen_rect.height = height;
 
-    printf("setting scanout...\n");
-    if (!gpu_set_scanout(rect, scanout_id, fb_resource_id)) {
+    if (!gpu_set_scanout(screen_rect, scanout_id, fb_resource_id)) {
         return false;
     }
 
     WFI();
 
-    printf("filling framebuffer...\n");
-    framebuffer_rectangle_fill(framebuffer, width, height, rect, (VirtioGpuPixel) {255, 0, 0, 255});
-
-    printf("transferring to host...\n");
-    if (!gpu_transfer_to_host_2d(rect, 0, fb_resource_id)) {
-        return false;
-    }
-
-    WFI();
-
-    printf("flushing resource...\n");
-    if (!gpu_resource_flush(rect, fb_resource_id)) {
-        return false;
-    }
-
-    WFI();
-
-    printf("filling framebuffer again...\n");
-    framebuffer_rectangle_fill(framebuffer, width, height, rect, (VirtioGpuPixel) {0, 255, 255, 255});
-
-    printf("transferring to host a little...\n");
-    if (!gpu_transfer_to_host_2d((VirtioGpuRectangle) {rect.width/4, rect.height/4, rect.width/2, rect.height/2}, 0, fb_resource_id)) {
-        return false;
-    }
-
-    WFI();
-
-    printf("flushing resource a little...\n");
-    if (!gpu_resource_flush((VirtioGpuRectangle) {rect.width/4, rect.height/4, rect.width/2, rect.height/2}, fb_resource_id)) {
-        return false;
-    }
-
-    WFI();
-
-    printf("done\n");
+    gpu_info->displays[scanout_id].resource_id = fb_resource_id;
+    gpu_info->displays[scanout_id].framebuffer = framebuffer;
 
     return true;
 }

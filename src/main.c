@@ -8,6 +8,7 @@
 #include <kmalloc.h>
 #include <pci.h>
 #include <plic.h>
+#include <gpu.h>
 
 
 uint64_t OS_GPREGS[32];
@@ -56,6 +57,11 @@ int main(int hart) {
     }
 
     CSR_WRITE("sscratch", OS_GPREGS);
+
+    if (!gpu_init()) {
+        printf("gpu_init failed\n");
+        return 1;
+    }
 
     // todo: add help, malloc, and free commands
     //       also improve hart starting/stopping

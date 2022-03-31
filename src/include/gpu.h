@@ -178,4 +178,11 @@ bool virtio_gpu_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioP
 
 bool gpu_handle_irq();
 
+bool gpu_get_display_info();
+uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_t height);
+VirtioGpuPixel* gpu_resource_attach_backing(uint32_t resource_id, uint32_t width, uint32_t height);
+bool gpu_set_scanout(VirtioGpuRectangle rect, uint32_t scanout_id, uint32_t resource_id);
+bool gpu_transfer_to_host_2d(VirtioGpuRectangle rect, uint64_t offset, uint32_t resource_id);
+bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id);
+bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, VirtioGpuRectangle screen_rect, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel);
 bool gpu_init();
