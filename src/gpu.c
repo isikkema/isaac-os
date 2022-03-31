@@ -218,7 +218,6 @@ bool gpu_handle_irq() {
                             continue;
                         }
 
-                        printf("enabled display: %d\n", i);
                         rect = ((VirtioGpuDisplayInfoResponse*) response)->displays[i].rect;
                         ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[i].rect = rect;
                         ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[i].enabled = true;
@@ -232,6 +231,7 @@ bool gpu_handle_irq() {
             
             case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
             case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
+            case VIRTIO_GPU_CMD_SET_SCANOUT:
                 if (response->hdr.control_type != VIRTIO_GPU_RESP_OK_NODATA) {
                     printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
                     rv = false;
@@ -305,9 +305,20 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
             ((VirtioGpuResourceAttachBackingRequest*) request)->num_entries = 1;
 
             framebuffer = kmalloc(sizeof(VirtioGpuPixel) * width * height);
+            ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].framebuffer = framebuffer;
+
             mem_entry = kzalloc(sizeof(VirtioGpuMemEntry));
             mem_entry->addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
             mem_entry->length = sizeof(VirtioGpuPixel) * width * height;
+
+            response = kzalloc(sizeof(VirtioGpuGenericResponse));
+            break;
+        
+        case VIRTIO_GPU_CMD_SET_SCANOUT:
+            request = kzalloc(sizeof(VirtioGpuSetScanoutRequest));
+            ((VirtioGpuSetScanoutRequest*) request)->scanout_id = scanout_id;
+            ((VirtioGpuSetScanoutRequest*) request)->resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
+            ((VirtioGpuSetScanoutRequest*) request)->rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
 
             response = kzalloc(sizeof(VirtioGpuGenericResponse));
             break;
@@ -339,6 +350,10 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
         
         case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuResourceAttachBackingRequest);
+            break;
+        
+        case VIRTIO_GPU_CMD_SET_SCANOUT:
+            virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuSetScanoutRequest);
             break;
         
         default:
@@ -373,6 +388,7 @@ bool gpu_request(VirtioGpuControlType type, uint32_t scanout_id) {
         
         case VIRTIO_GPU_CMD_RESOURCE_CREATE_2D:
         case VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING:
+        case VIRTIO_GPU_CMD_SET_SCANOUT:
             virtio_gpu_device.queue_desc[at_idx].len = sizeof(VirtioGpuGenericResponse);
             break;
         
@@ -423,6 +439,41 @@ bool gpu_resource_attach_backing(uint32_t scanout_id) {
     return gpu_request(VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING, scanout_id);
 }
 
+bool gpu_set_scanout(uint32_t scanout_id) {
+    return gpu_request(VIRTIO_GPU_CMD_SET_SCANOUT, scanout_id);
+}
+
+bool framebuffer_rectangle_fill(uint32_t scanout_id, uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, VirtioGpuPixel pixel) {
+    u32 i;
+    u32 j;
+    VirtioGpuPixel* framebuffer;
+    u32 width;
+    u32 height;
+
+    if (x1 > x2 || y1 > y2) {
+        printf("top-left must be smaller than bottom-right\n");
+        return false;
+    }
+
+    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].framebuffer;
+    width = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.width;
+    height = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect.height;
+
+    if (x2 > width || y2 > height) {
+        printf("bottom-right must be smaller than display size\n");
+        return false;
+    }
+
+    printf("fb: 0x%08x\n", (u64) framebuffer);
+    for (i = y1; i < y2; i++) {
+        for (j = x1; j < x2; j++) {
+            framebuffer[i * width + j] = pixel;
+        }
+    }
+
+    return true;
+}
+
 bool gpu_init() {
     printf("getting display info...\n");
     if (!gpu_get_display_info()) {
@@ -444,6 +495,16 @@ bool gpu_init() {
     }
 
     WFI();
+
+    printf("setting scanout...\n");
+    if (!gpu_set_scanout(0)) {
+        return false;
+    }
+
+    WFI();
+
+    printf("filling framebuffer...\n");
+    framebuffer_rectangle_fill(0, 0, 0, 500, 400, (VirtioGpuPixel) {255, 0, 0, 255});
 
     printf("done\n");
 

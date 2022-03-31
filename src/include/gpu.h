@@ -116,6 +116,13 @@ typedef struct virtio_gpu_resource_attach_backing_request {
    uint32_t num_entries;
 } VirtioGpuResourceAttachBackingRequest;
 
+typedef struct virtio_gpu_set_scanout_request {
+   VirtioGpuControlHeader hdr;
+   VirtioGpuRectangle rect;
+   uint32_t scanout_id;
+   uint32_t resource_id;
+} VirtioGpuSetScanoutRequest;
+
 typedef struct virtio_gpu_generic_response {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericResponse;
@@ -137,6 +144,7 @@ typedef struct virtio_gpu_request_info {
 typedef struct virtio_gpu_device_info {
    struct {
       VirtioGpuRectangle rect;
+      void* framebuffer;
       uint32_t resource_id;
       bool enabled;
    } displays[VIRTIO_GPU_MAX_SCANOUTS];
