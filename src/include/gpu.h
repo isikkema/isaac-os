@@ -123,6 +123,14 @@ typedef struct virtio_gpu_set_scanout_request {
    uint32_t resource_id;
 } VirtioGpuSetScanoutRequest;
 
+typedef struct virtio_gpu_transfer_to_host_2d_request {
+   VirtioGpuControlHeader hdr;
+   VirtioGpuRectangle rect;
+   uint64_t offset;
+   uint32_t resource_id;
+   uint32_t padding;
+} VirtioGpuTransferToHost2dRequest;
+
 typedef struct virtio_gpu_generic_response {
    VirtioGpuControlHeader hdr;
 } VirtioGpuGenericResponse;
