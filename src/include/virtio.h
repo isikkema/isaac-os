@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <lock.h>
+#include <pci.h>
 
 
 #define VIRTIO_PCI_CAP_CFG_TYPE_COMMON       (1)
@@ -99,6 +100,7 @@ typedef struct virt_queue_used {
 } VirtQueueUsed;
 
 typedef struct virtio_device {
+   void (*handle_irq)();
    VirtQueueDescriptor* queue_desc;
    VirtQueueAvailable* queue_driver;
    VirtQueueUsed* queue_device;
@@ -116,5 +118,18 @@ typedef struct virtio_device {
    bool enabled;
 } VirtioDevice;
 
+typedef struct virtio_device_list {
+   struct virto_device_list* next;
+   VirtioDevice* device;
+} VirtioDeviceList;
+
+
+bool virtio_device_driver(VirtioDevice* device, volatile EcamHeader* ecam);
+bool virtio_device_setup_capability(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_device_setup_cap_cfg_common(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_device_setup_cap_cfg_notify(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_device_setup_cap_cfg_isr(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
 void virtio_handle_irq(uint32_t irq);
+
+void virtio_add_device(VirtioDevice* device);
