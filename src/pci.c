@@ -8,6 +8,7 @@
 #include <rng.h>
 #include <block.h>
 #include <gpu.h>
+#include <input.h>
 
 
 DriverList* driver_head;
@@ -286,6 +287,11 @@ bool pci_init_drivers() {
 
     // gpu
     if (!pci_register_driver(0x1af4, 0x1050, virtio_gpu_driver)) {
+        return false;
+    }
+
+    // input
+    if (!pci_register_driver(0x1af4, 0x1052, virtio_input_driver)) {
         return false;
     }
 

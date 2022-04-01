@@ -2,6 +2,7 @@
 #include <rng.h>
 #include <block.h>
 #include <gpu.h>
+#include <input.h>
 #include <printf.h>
 
 
@@ -12,6 +13,8 @@ void virtio_handle_irq(uint32_t irq) {
         block_handle_irq();
     } else if (irq == virtio_gpu_device.irq && (*virtio_gpu_device.isr & (VIRTIO_ISR_QUEUE_INT | VIRTIO_ISR_DEVICE_CFG_INT))) {
         gpu_handle_irq();
+    } else if (irq == virtio_input_device.irq && (*virtio_input_device.isr & (VIRTIO_ISR_QUEUE_INT | VIRTIO_ISR_DEVICE_CFG_INT))) {
+        input_handle_irq();
     } else {
         printf("virtio_handle_irq: could not find interrupting device with irq: %d\n", irq);
     }
