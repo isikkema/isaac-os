@@ -1,6 +1,5 @@
 #include <plic.h>
 #include <uart.h>
-#include <virtio.h>
 #include <printf.h>
 #include <hart.h>
 

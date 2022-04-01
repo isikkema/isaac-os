@@ -32,6 +32,8 @@ void c_trap(void) {
         switch (scause) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
+                printf("waiting for interrupt...\n");
+                WFI();
         }
     }
 }

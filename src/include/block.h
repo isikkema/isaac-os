@@ -73,17 +73,12 @@ typedef struct virtio_block_request_info {
 } VirtioBlockRequestInfo;
 
 
-extern VirtioDevice virtio_block_device;
+extern VirtioDevice* virtio_block_device;
 
 
 bool virtio_block_driver(volatile EcamHeader* ecam);
-bool virtio_block_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_block_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_block_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_block_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_block_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
-bool block_handle_irq();
+void block_handle_irq();
 
 bool block_read(void* dst, void* src, uint32_t size);
 bool block_write(void* dst, void* src, uint32_t size);
