@@ -136,7 +136,7 @@ bool virtio_input_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile Virti
     cfg->queue_device = mmu_translate(kernel_mmu_table, (u64) virtio_input_device.queue_device);
 
     virtio_input_device.request_info = kzalloc(queue_size * sizeof(void*));
-    // virtio_input_device.device_info = kzalloc(sizeof(VirtioInputDeviceInfo));
+    virtio_input_device.device_info = kzalloc(sizeof(VirtioInputDeviceInfo));
 
     // Enable device
     cfg->queue_enable = 1;
@@ -197,12 +197,66 @@ bool input_handle_irq() {
         ack_idx = virtio_input_device.ack_idx;
 
         printf("input_handle_irq: handling idx: %d...\n", ack_idx);
-        // req_info = virtio_input_device.request_info[virtio_input_device.queue_driver->ring[ack_idx % queue_size] % queue_size];
-
-        // kfree(req_info);
+        
+        virtio_input_device.queue_driver->idx++;
 
         virtio_input_device.ack_idx++;
     }
 
     return rv;
+}
+
+
+bool input_init() {
+    u32 at_idx;
+    u32 queue_size;
+    u32* notify_ptr;
+    VirtioInputDeviceInfo* input_info;
+    VirtioInputEvent* event_buffer;
+    u32 i;
+
+    if (!virtio_input_device.enabled) {
+        return false;
+    }
+
+    mutex_sbi_lock(&virtio_input_device.lock);
+
+    at_idx = virtio_input_device.at_idx;
+    // first_idx = at_idx;
+    queue_size = virtio_input_device.cfg->queue_size;
+
+    event_buffer = kzalloc(sizeof(VirtioInputEvent) * queue_size);
+
+    input_info = virtio_input_device.device_info;
+    input_info->event_buffer = event_buffer;
+
+    // Add descriptors to queue
+    for (i = 0; i < queue_size; i++) {
+        virtio_input_device.queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) (event_buffer + i));
+        virtio_input_device.queue_desc[at_idx].len = sizeof(VirtioInputEvent);
+        virtio_input_device.queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
+        virtio_input_device.queue_desc[at_idx].next = 0;
+        
+        virtio_input_device.queue_driver->ring[virtio_input_device.queue_driver->idx % queue_size] = at_idx;
+        virtio_input_device.queue_driver->idx += 1;
+        
+        at_idx = (at_idx + 1) % queue_size;
+    }
+
+    // Notify
+    notify_ptr = (u32*) BAR_NOTIFY_CAP(
+        virtio_input_device.base_notify_offset,
+        virtio_input_device.cfg->queue_notify_off,
+        virtio_input_device.notify->notify_off_multiplier
+    );
+    
+    mutex_unlock(&virtio_input_device.lock);
+
+    // Increment indices
+    virtio_input_device.at_idx = at_idx;
+
+    // Notify even after unlock so it hopefully stops interrupting before my WFI instructions
+    *notify_ptr = 0;
+
+    return true;
 }

@@ -14,6 +14,7 @@
 #include <csr.h>
 #include <block.h>
 #include <gpu.h>
+#include <input.h>
 
 
 char blocking_getchar() {
@@ -257,9 +258,11 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (!gpu_init()) {
-        printf("gpu_init failed\n");
+    if (!input_init()) {
+        printf("input_init failed\n");
     }
+
+    WFI();
 }
 
 void random(int argc, char** args) {

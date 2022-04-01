@@ -52,9 +52,9 @@ typedef struct virtio_input_event {
     uint32_t value;
 } VirtioInputEvent;
 
-// typedef struct virtio_input_request_info {
-
-// } VirtioInputRequestInfo;
+typedef struct virtio_input_device_info {
+    VirtioInputEvent* event_buffer;
+} VirtioInputDeviceInfo;
 
 
 extern VirtioDevice virtio_input_device;
@@ -69,4 +69,4 @@ bool virtio_input_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile Virti
 
 bool input_handle_irq();
 
-// bool input_something();
+bool input_init();
