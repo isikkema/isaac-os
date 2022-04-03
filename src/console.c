@@ -376,50 +376,69 @@ void gpu(int argc, char** args) {
     VirtioGpuPixel* framebuffer;
     VirtioGpuRectangle screen_rect;
     VirtioGpuRectangle draw_rect;
+    u32 i;
 
-    if (argc < 9) {
-        printf("usage: gpu draw x y width height r g b\n");
+    if (argc >= 2 && strcmp(args[1], "size") == 0) {
+        for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
+            if (!((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[i].enabled) {
+                continue;
+            }
+
+            printf("display: %d, %dx%d\n", i,
+                ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[i].rect.width,
+                ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[i].rect.height
+            );
+        }
+
+        return;
+    } else if (argc >= 2 && strcmp(args[1], "draw") == 0) {
+        if (argc < 9) {
+            printf("usage: gpu draw x y width height r g b\n");
+            return;
+        }
+
+        x = atoi(args[2]);
+        y = atoi(args[3]);
+        width = atoi(args[4]);
+        height = atoi(args[5]);
+        r = atoi(args[6]);
+        g = atoi(args[7]);
+        b = atoi(args[8]);
+
+        draw_rect = (VirtioGpuRectangle) {x, y, width, height};
+
+        scanout_id = 0;
+        resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].resource_id;
+        framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].framebuffer;
+        screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].rect;
+
+        if (!framebuffer_rectangle_fill(
+            framebuffer,
+            screen_rect,
+            draw_rect,
+            (VirtioGpuPixel) {r, g, b, 255}
+        )) {
+            printf("framebuffer_rectangle_fill failed\n");
+            return;
+        }
+
+        if (!gpu_transfer_to_host_2d(draw_rect, sizeof(VirtioGpuPixel) * (draw_rect.y * screen_rect.width + draw_rect.x), resource_id)) {
+            printf("gpu_transfer_to_host_2d failed\n");
+            return;
+        }
+
+        WFI();
+
+        if (!gpu_resource_flush(draw_rect, resource_id)) {
+            printf("gpu_resource_flush failed\n");
+            return;
+        }
+
+        WFI();
+    } else {
+        printf("usage: gpu size|draw\n");
         return;
     }
-
-    x = atoi(args[2]);
-    y = atoi(args[3]);
-    width = atoi(args[4]);
-    height = atoi(args[5]);
-    r = atoi(args[6]);
-    g = atoi(args[7]);
-    b = atoi(args[8]);
-
-    draw_rect = (VirtioGpuRectangle) {x, y, width, height};
-
-    scanout_id = 0;
-    resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].resource_id;
-    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].framebuffer;
-    screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].rect;
-
-    if (!framebuffer_rectangle_fill(
-        framebuffer,
-        screen_rect,
-        draw_rect,
-        (VirtioGpuPixel) {r, g, b, 255}
-    )) {
-        printf("framebuffer_rectangle_fill failed\n");
-        return;
-    }
-
-    if (!gpu_transfer_to_host_2d(draw_rect, sizeof(VirtioGpuPixel) * (draw_rect.y * screen_rect.width + draw_rect.x), resource_id)) {
-        printf("gpu_transfer_to_host_2d failed\n");
-        return;
-    }
-
-    WFI();
-
-    if (!gpu_resource_flush(draw_rect, resource_id)) {
-        printf("gpu_resource_flush failed\n");
-        return;
-    }
-
-    WFI();
 }
 
 void start_hart(int argc, char** args) {
