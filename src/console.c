@@ -393,9 +393,9 @@ void gpu(int argc, char** args) {
     draw_rect = (VirtioGpuRectangle) {x, y, width, height};
 
     scanout_id = 0;
-    resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].resource_id;
-    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].framebuffer;
-    screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device.device_info)->displays[scanout_id].rect;
+    resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].resource_id;
+    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].framebuffer;
+    screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].rect;
 
     if (!framebuffer_rectangle_fill(
         framebuffer,

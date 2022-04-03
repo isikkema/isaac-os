@@ -166,17 +166,12 @@ typedef struct virtio_gpu_device_info {
 } VirtioGpuDeviceInfo;
 
 
-extern VirtioDevice virtio_gpu_device;
+extern VirtioDevice* virtio_gpu_device;
 
 
 bool virtio_gpu_driver(volatile EcamHeader* ecam);
-bool virtio_gpu_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_gpu_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_gpu_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_gpu_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_gpu_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
-bool gpu_handle_irq();
+void gpu_handle_irq();
 
 bool gpu_get_display_info();
 uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_t height);
