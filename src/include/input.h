@@ -57,16 +57,11 @@ typedef struct virtio_input_device_info {
 } VirtioInputDeviceInfo;
 
 
-extern VirtioDevice virtio_input_device;
+extern VirtioDevice* virtio_input_device;
 
 
 bool virtio_input_driver(volatile EcamHeader* ecam);
-bool virtio_input_setup_capability(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_input_setup_cap_cfg_common(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_input_setup_cap_cfg_notify(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_input_setup_cap_cfg_isr(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
-bool virtio_input_setup_cap_cfg_device(volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
-bool input_handle_irq();
+void input_handle_irq();
 
 bool input_init();
