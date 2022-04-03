@@ -100,6 +100,12 @@ bool virtio_device_setup_capability(VirtioDevice* device, volatile EcamHeader* e
             break;
 
         case VIRTIO_PCI_CAP_CFG_TYPE_DEVICE:
+            if (!virtio_device_setup_cap_cfg_device(device, ecam, cap)) {
+                printf("virtio_device_setup_capability: failed to setup device specific configuration\n");
+                return false;
+            }
+            break;
+
         case VIRTIO_PCI_CAP_CFG_TYPE_COMMON_ALT:
             printf("virtio_device_setup_capability: ignoring configuration type: %d\n", cap->cfg_type);
             break;
@@ -193,6 +199,17 @@ bool virtio_device_setup_cap_cfg_isr(VirtioDevice* device, volatile EcamHeader* 
 
     return true;
 }
+
+bool virtio_device_setup_cap_cfg_device(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap) {
+    void* device_cfg;
+
+    device_cfg = (void*) pci_read_bar(ecam, cap->bar) + cap->offset;
+
+    device->device_cfg = device_cfg;
+
+    return true;
+}
+
 
 void virtio_add_device(VirtioDevice* device) {
     VirtioDeviceList* new_node;

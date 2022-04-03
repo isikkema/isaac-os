@@ -119,7 +119,7 @@ typedef struct virtio_device {
 } VirtioDevice;
 
 typedef struct virtio_device_list {
-   struct virto_device_list* next;
+   struct virtio_device_list* next;
    VirtioDevice* device;
 } VirtioDeviceList;
 
@@ -129,6 +129,7 @@ bool virtio_device_setup_capability(VirtioDevice* device, volatile EcamHeader* e
 bool virtio_device_setup_cap_cfg_common(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 bool virtio_device_setup_cap_cfg_notify(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 bool virtio_device_setup_cap_cfg_isr(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
+bool virtio_device_setup_cap_cfg_device(VirtioDevice* device, volatile EcamHeader* ecam, volatile VirtioPciCapability* cap);
 
 void virtio_handle_irq(uint32_t irq);
 
