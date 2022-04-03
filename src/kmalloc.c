@@ -39,7 +39,7 @@ int64_t split_node(Allocation* node, size_t bytes) {
 
     if (node->size < bytes) {
         return -1;  // This node isn't big enough to hold bytes anyways. Error
-    } else if (node->size <= bytes + sizeof(Allocation)) {
+    } else if (node->size <= bytes + sizeof(Allocation) + KMALLOC_MINIMUM_NODE_SIZE - 1) {
         return 0;   // Big enough to hold bytes but not worth it to split the node.
     }
 
@@ -88,6 +88,9 @@ void* kmalloc(size_t bytes) {
     uint64_t num_pages;
 
     mutex_sbi_lock(&kmalloc_lock);
+
+    // Align size
+    bytes = (bytes + KMALLOC_MINIMUM_NODE_SIZE - 1) & ~(KMALLOC_MINIMUM_NODE_SIZE - 1);
 
     // Find first node big enough to hold bytes
     for (free_node = free_head->next; free_node != free_head; free_node = free_node->next) {
