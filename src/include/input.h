@@ -57,11 +57,16 @@ typedef struct virtio_input_device_info {
 } VirtioInputDeviceInfo;
 
 
-extern VirtioDevice* virtio_input_device;
+extern VirtioDeviceList* virtio_input_device_head;
+
+extern VirtioDevice* virtio_input_keyboard_device;
+extern VirtioDevice* virtio_input_tablet_device;
 
 
 bool virtio_input_driver(volatile EcamHeader* ecam);
 
 void input_handle_irq();
+void input_keyboard_handle_irq();
+void input_tablet_handle_irq();
 
 bool input_init();

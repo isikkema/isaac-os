@@ -31,6 +31,8 @@ void test_function(void) {
 }
 
 int main(int hart) {
+    CSR_WRITE("sscratch", OS_GPREGS);
+
     if (!page_alloc_init()) {
         printf("Failed to init page_alloc\n");
         return 1;
@@ -55,8 +57,6 @@ int main(int hart) {
         printf("Failed to init plic\n");
         return 1;
     }
-
-    CSR_WRITE("sscratch", OS_GPREGS);
 
     if (!gpu_init()) {
         printf("gpu_init failed\n");
