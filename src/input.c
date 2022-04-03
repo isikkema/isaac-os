@@ -82,15 +82,22 @@ void input_keyboard_handle_irq() {
 }
 
 void input_tablet_handle_irq() {
+    VirtioInputDeviceInfo* handle_info;
     u16 ack_idx;
-    // u16 queue_size;
+    u16 queue_size;
+    u32 id;
+    VirtioInputEvent event;
 
-    // queue_size = virtio_input_tablet_device->cfg->queue_size;
+    queue_size = virtio_input_tablet_device->cfg->queue_size;
+    handle_info = virtio_input_tablet_device->device_info;
 
     while (virtio_input_tablet_device->ack_idx != virtio_input_tablet_device->queue_device->idx) {
         ack_idx = virtio_input_tablet_device->ack_idx;
 
-        printf("input_handle_irq: handling idx: %d...\n", ack_idx);
+        id = virtio_input_tablet_device->queue_device->ring[ack_idx % queue_size].id;
+        event = handle_info->event_buffer[id];
+
+        printf("input_tablet_handle_irq: [TABLET EVENT]: %02x/%02x/%08x\n", event.type, event.code, event.value);
         
         virtio_input_tablet_device->queue_driver->idx++;
 
