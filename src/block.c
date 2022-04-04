@@ -33,6 +33,7 @@ bool virtio_block_driver(volatile EcamHeader* ecam) {
 void block_handle_irq() {
     u16 ack_idx;
     u16 queue_size;
+    u32 id;
     VirtioBlockRequestInfo* req_info;
     VirtioBlockDescHeader* desc_header;
     VirtioBlockDescStatus* desc_status;
@@ -43,12 +44,14 @@ void block_handle_irq() {
     while (virtio_block_device->ack_idx != virtio_block_device->queue_device->idx) {
         ack_idx = virtio_block_device->ack_idx;
 
-        req_info = virtio_block_device->request_info[virtio_block_device->queue_driver->ring[ack_idx % queue_size] % queue_size];
+        id = virtio_block_device->queue_device->ring[ack_idx % queue_size].id % queue_size;
+    
+        req_info = virtio_block_device->request_info[id];
         desc_header = req_info->desc_header;
         desc_status = req_info->desc_status;
 
         if (desc_status->status != VIRTIO_BLK_S_OK) {
-            printf("block_handle_irq: block: non-OK status: %d, idx: %d\n", desc_status->status, ack_idx % queue_size);
+            printf("block_handle_irq: block: non-OK status: %d, idx: %d\n", desc_status->status, id);
         } else if (desc_header->type == VIRTIO_BLK_T_IN) {  // If read request
             // Copy exact chunk needed from buffer to dst
             device_cfg = virtio_block_device->device_cfg;
