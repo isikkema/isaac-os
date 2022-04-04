@@ -13,6 +13,48 @@ VirtioDeviceList* virtio_input_device_head;
 VirtioDevice* virtio_input_keyboard_device;
 VirtioDevice* virtio_input_tablet_device;
 
+VirtioInputEventRingBuffer virtio_input_event_ring_buffer;
+
+
+// Just overwrite silently for now
+void virtio_input_event_push(VirtioInputEvent event) {
+    VirtioInputEvent* buffer;
+    u32 idx;
+    u32 size;
+
+    buffer = virtio_input_event_ring_buffer.buffer;
+    idx = virtio_input_event_ring_buffer.idx;
+    size = virtio_input_event_ring_buffer.size;
+
+    buffer[(idx + size) % VIRTIO_INPUT_EVENT_BUFFER_SIZE] = event;
+    if (size != VIRTIO_INPUT_EVENT_BUFFER_SIZE - 1) {
+        size++;
+    } else {
+        idx = (idx + 1) % VIRTIO_INPUT_EVENT_BUFFER_SIZE;
+    }
+}
+
+VirtioInputEvent virtio_input_event_pop() {
+    VirtioInputEvent* buffer;
+    u32 idx;
+    u32 size;
+    VirtioInputEvent rv;
+
+    buffer = virtio_input_event_ring_buffer.buffer;
+    idx = virtio_input_event_ring_buffer.idx;
+    size = virtio_input_event_ring_buffer.size;
+
+    if (size == 0) {
+        return (VirtioInputEvent) {-1, -1, -1};
+    }
+
+    rv = buffer[idx % VIRTIO_INPUT_EVENT_BUFFER_SIZE];
+    size--;
+    idx = (idx + 1) % VIRTIO_INPUT_EVENT_BUFFER_SIZE;
+
+    return rv;
+}
+
 
 void virtio_input_add_device(VirtioDevice* device) {
     VirtioDeviceList* new_node;
@@ -75,6 +117,7 @@ void input_keyboard_handle_irq() {
         event = keyboard_info->event_buffer[id];
 
         printf("input_keyboard_handle_irq: [KEYBOARD EVENT]: %02x/%02x/%08x\n", event.type, event.code, event.value);
+        virtio_input_event_push(event);
         
         virtio_input_keyboard_device->queue_driver->idx++;
 
@@ -99,6 +142,7 @@ void input_tablet_handle_irq() {
         event = handle_info->event_buffer[id];
 
         printf("input_tablet_handle_irq: [TABLET EVENT]: %02x/%02x/%08x\n", event.type, event.code, event.value);
+        virtio_input_event_push(event);
 
         virtio_input_tablet_device->queue_driver->idx++;
 

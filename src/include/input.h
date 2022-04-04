@@ -8,6 +8,9 @@
 #include <input-event-codes.h>
 
 
+#define VIRTIO_INPUT_EVENT_BUFFER_SIZE 512
+
+
 typedef enum virtio_input_config_select {
     VIRTIO_INPUT_CFG_UNSET = 0x00,
     VIRTIO_INPUT_CFG_ID_NAME = 0x01,
@@ -56,11 +59,19 @@ typedef struct virtio_input_device_info {
     VirtioInputEvent* event_buffer;
 } VirtioInputDeviceInfo;
 
+typedef struct virtio_input_event_ring_buffer {
+    VirtioInputEvent buffer[VIRTIO_INPUT_EVENT_BUFFER_SIZE];
+    uint32_t idx;
+    uint32_t size;
+} VirtioInputEventRingBuffer;
+
 
 extern VirtioDeviceList* virtio_input_device_head;
 
 extern VirtioDevice* virtio_input_keyboard_device;
 extern VirtioDevice* virtio_input_tablet_device;
+
+extern VirtioInputEventRingBuffer virtio_input_event_ring_buffer;
 
 
 bool virtio_input_driver(volatile EcamHeader* ecam);

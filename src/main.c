@@ -9,6 +9,7 @@
 #include <pci.h>
 #include <plic.h>
 #include <gpu.h>
+#include <input.h>
 
 
 uint64_t OS_GPREGS[32];
@@ -60,6 +61,11 @@ int main(int hart) {
 
     if (!gpu_init()) {
         printf("gpu_init failed\n");
+        return 1;
+    }
+
+    if (!input_init()) {
+        printf("input_init failed\n");
         return 1;
     }
 
