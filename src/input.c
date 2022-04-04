@@ -5,6 +5,7 @@
 #include <csr.h>
 #include <printf.h>
 #include <rs_int.h>
+#include <gpu.h>
 
 
 VirtioDeviceList* virtio_input_device_head;
@@ -98,7 +99,7 @@ void input_tablet_handle_irq() {
         event = handle_info->event_buffer[id];
 
         printf("input_tablet_handle_irq: [TABLET EVENT]: %02x/%02x/%08x\n", event.type, event.code, event.value);
-        
+
         virtio_input_tablet_device->queue_driver->idx++;
 
         virtio_input_tablet_device->ack_idx++;
