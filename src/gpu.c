@@ -35,6 +35,7 @@ bool virtio_gpu_driver(volatile EcamHeader* ecam) {
 void gpu_handle_irq() {
     u16 ack_idx;
     u16 queue_size;
+    u32 id;
     VirtioGpuRequestInfo* req_info;
     VirtioGpuGenericRequest* request;
     VirtioGpuGenericResponse* response;
@@ -46,7 +47,9 @@ void gpu_handle_irq() {
     while (virtio_gpu_device->ack_idx != virtio_gpu_device->queue_device->idx) {
         ack_idx = virtio_gpu_device->ack_idx;
 
-        req_info = virtio_gpu_device->request_info[virtio_gpu_device->queue_driver->ring[ack_idx % queue_size] % queue_size];
+        id = virtio_gpu_device->queue_device->ring[ack_idx % queue_size].id % queue_size;
+
+        req_info = virtio_gpu_device->request_info[id];
         request = req_info->request;
         response = req_info->response;
 
@@ -63,7 +66,7 @@ void gpu_handle_irq() {
                         ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[i].enabled = true;
                     }
                 } else {
-                    printf("gpu_handle_irq: non-OK_DISPLAY_INFO control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
+                    printf("gpu_handle_irq: non-OK_DISPLAY_INFO control type: 0x%04x, idx: %d\n", response->hdr.control_type, id);
                 }
 
                 break;
@@ -74,7 +77,7 @@ void gpu_handle_irq() {
             case VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D:
             case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
                 if (response->hdr.control_type != VIRTIO_GPU_RESP_OK_NODATA) {
-                    printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, ack_idx % queue_size);
+                    printf("gpu_handle_irq: non-OK_NODATA control type: 0x%04x, idx: %d\n", response->hdr.control_type, id);
                 }
                 break;
             
