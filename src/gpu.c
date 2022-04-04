@@ -411,10 +411,14 @@ bool gpu_fill_and_flush(uint32_t scanout_id, VirtioGpuRectangle fill_rect, Virti
         return false;
     }
 
+    WFI();
+
     if (!gpu_resource_flush(fill_rect, resource_id)) {
         printf("gpu_resource_flush failed\n");
         return false;
     }
+
+    WFI();
 
     return true;
 }

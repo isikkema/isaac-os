@@ -10,6 +10,7 @@
 #include <plic.h>
 #include <gpu.h>
 #include <input.h>
+#include <rs_int.h>
 
 
 uint64_t OS_GPREGS[32];
@@ -59,6 +60,8 @@ int main(int hart) {
         return 1;
     }
 
+    printf("Just keep pressing enter to get through the WFIs until you see the console prompt.\n");
+
     if (!gpu_init()) {
         printf("gpu_init failed\n");
         return 1;
@@ -68,6 +71,21 @@ int main(int hart) {
         printf("input_init failed\n");
         return 1;
     }
+
+    u32 width = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[0].rect.width;
+    u32 height = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[0].rect.height;
+    
+    if (!gpu_fill_and_flush(0, (VirtioGpuRectangle) {0, 0, width, height}, (VirtioGpuPixel) {255, 0, 0, 255})) {
+        printf("gpu_fill_and_fluh failed\n");
+        return 1;
+    }
+
+    if (!gpu_fill_and_flush(0, (VirtioGpuRectangle) {width/4, height/4, width/2, height/2}, (VirtioGpuPixel) {0, 255, 255, 255})) {
+        printf("gpu_fill_and_fluh failed\n");
+        return 1;
+    }
+
+    printf("amogus\n");
 
     // todo: add help, malloc, and free commands
     //       also improve hart starting/stopping
