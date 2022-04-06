@@ -315,13 +315,11 @@ void read(int argc, char** args) {
 
     data = kmalloc(size);
 
-    if (!block_read(data, addr, size)) {
+    if (!block_read_poll(data, addr, size)) {
         printf("block_read failed\n");
         kfree(data);
         return;
     }
-
-    WFI();
 
     for (i = 0; i < size; i++) {
         if (strcmp("bytes", args[1]) == 0) {
@@ -353,12 +351,10 @@ void write(int argc, char** args) {
 
     data = (u8*) args[2];
 
-    if (!block_write(addr, data, size)) {
+    if (!block_write_poll(addr, data, size)) {
         printf("block_write failed\n");
         return;
     }
-
-    WFI();
 
     printf("done.\n");
 }

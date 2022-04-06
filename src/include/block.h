@@ -70,6 +70,7 @@ typedef struct virtio_block_request_info {
    void* src;
    void* data;
    uint32_t size;
+   bool complete;
 } VirtioBlockRequestInfo;
 
 
@@ -83,3 +84,6 @@ void block_handle_irq();
 bool block_read(void* dst, void* src, uint32_t size);
 bool block_write(void* dst, void* src, uint32_t size);
 bool block_flush(void* addr);
+bool block_read_poll(void* dst, void* src, uint32_t size);
+bool block_write_poll(void* dst, void* src, uint32_t size);
+bool block_flush_poll(void* addr);

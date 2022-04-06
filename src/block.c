@@ -58,6 +58,8 @@ void block_handle_irq() {
             memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
 
+        req_info->complete = true;
+
         switch (desc_header->type) {
             case VIRTIO_BLK_T_IN:
             case VIRTIO_BLK_T_OUT:
@@ -73,7 +75,7 @@ void block_handle_irq() {
 };
 
 
-bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock) {
+bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock, bool poll) {
     u32 at_idx;
     u32 first_idx;
     u32 next_idx;
@@ -127,11 +129,9 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
             // but that's more complicated.
 
             // Don't lock because this should count as part of the same request.
-            if (!block_request(VIRTIO_BLK_T_IN, data, (void*) ((u64) low_sector * cfg->blk_size), aligned_size, false)) {
+            if (!block_request(VIRTIO_BLK_T_IN, data, (void*) ((u64) low_sector * cfg->blk_size), aligned_size, false, true)) {
                 printf("block_request: block_read failed\n");
             }
-
-            WFI();
 
             memcpy(data + (u64) dst % cfg->blk_size, src, size);
         }
@@ -190,18 +190,8 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
         request_info->desc_header = desc_header;
         request_info->desc_data = desc_data;
         request_info->desc_status = desc_status;
+        request_info->complete = false;
         virtio_block_device->request_info[first_idx] = request_info;
-    }
-
-    // Notify
-    notify_ptr = (u32*) BAR_NOTIFY_CAP(
-        virtio_block_device->base_notify_offset,
-        virtio_block_device->cfg->queue_notify_off,
-        virtio_block_device->notify->notify_off_multiplier
-    );
-    
-    if (lock) {
-        mutex_unlock(&virtio_block_device->lock);
     }
 
     // Increment indices
@@ -210,20 +200,48 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
 
     virtio_block_device->queue_driver->idx += 1;
 
-    // Notify even after unlock so it hopefully stops interrupting before my WFI instructions
+    // Notify
+    notify_ptr = (u32*) BAR_NOTIFY_CAP(
+        virtio_block_device->base_notify_offset,
+        virtio_block_device->cfg->queue_notify_off,
+        virtio_block_device->notify->notify_off_multiplier
+    );
+    
     *notify_ptr = 0;
+
+    if (lock) {
+        mutex_unlock(&virtio_block_device->lock);
+    }
+
+    if (poll) {
+        while (!request_info->complete) {
+            // Poll
+        }
+    }
 
     return true;
 }
 
 bool block_read(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_IN, dst, src, size, true);
+    return block_request(VIRTIO_BLK_T_IN, dst, src, size, true, false);
 }
 
 bool block_write(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_OUT, dst, src, size, true);
+    return block_request(VIRTIO_BLK_T_OUT, dst, src, size, true, false);
 }
 
 bool block_flush(void* addr) {
-    return block_request(VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true);
+    return block_request(VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, false);
+}
+
+bool block_read_poll(void* dst, void* src, uint32_t size) {
+    return block_request(VIRTIO_BLK_T_IN, dst, src, size, true, true);
+}
+
+bool block_write_poll(void* dst, void* src, uint32_t size) {
+    return block_request(VIRTIO_BLK_T_OUT, dst, src, size, true, true);
+}
+
+bool block_flush_poll(void* addr) {
+    return block_request(VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, true);
 }
