@@ -15,6 +15,7 @@
 #include <block.h>
 #include <gpu.h>
 #include <input.h>
+#include <elf.h>
 
 
 char blocking_getchar() {
@@ -258,11 +259,9 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (!input_init()) {
-        printf("input_init failed\n");
+    if (!load_elf()) {
+        printf("load_elf failed\n");
     }
-
-    WFI();
 }
 
 void random(int argc, char** args) {
