@@ -34,6 +34,7 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits);
 bool mmu_map_many(PageTable* tb, uint64_t vaddr_start, uint64_t paddr_start, uint64_t num_bytes, uint64_t bits);
 void mmu_free(PageTable* tb);
 uint64_t mmu_translate(PageTable* tb, uint64_t vaddr);
+uint8_t mmu_flags(PageTable* tb, uint64_t vaddr);
 
 void mmu_table_print(PageTable* tb, int level);
 void mmu_translations_print(PageTable* tb, bool detailed);

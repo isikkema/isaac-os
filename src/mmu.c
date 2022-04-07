@@ -153,6 +153,36 @@ uint64_t mmu_translate(PageTable* tb, uint64_t vaddr) {
     return -1UL;
 }
 
+uint8_t mmu_flags(PageTable* tb, uint64_t vaddr) {
+    uint32_t vpn[3];
+    uint64_t entry;
+    int i;
+
+    vpn[0] = (vaddr >> 12) & 0x1FF;
+    vpn[1] = (vaddr >> 21) & 0x1FF;
+    vpn[2] = (vaddr >> 30) & 0x1FF;
+
+    mutex_sbi_lock(&mmu_lock);
+
+    for (i = 2; i >= 0; i--) {
+        entry = tb->entries[vpn[i]];
+        if (!(entry & PB_VALID)) {
+            mutex_unlock(&mmu_lock);
+            return 0;
+        } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) { // Leaf
+            mutex_unlock(&mmu_lock);
+            return entry & 0xFF;
+        }
+
+        // Follow entry to next page table
+        tb = (PageTable*) ((entry << 2) & 0xFFFFFFFFFFF000UL);
+    }
+
+    // Branch at level 0
+    mutex_unlock(&mmu_lock);
+    return 0;
+}
+
 void mmu_table_print(PageTable* tb, int level) {
     uint64_t entry;
     int i;

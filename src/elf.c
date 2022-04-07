@@ -1,6 +1,8 @@
 #include <elf.h>
 #include <block.h>
 #include <string.h>
+#include <page_alloc.h>
+#include <mmu.h>
 #include <rs_int.h>
 #include <printf.h>
 
@@ -9,9 +11,16 @@ bool load_elf() {
     void* elf_addr;
     Elf64_Ehdr elf_header;
     Elf64_Phdr program_header;
+    void* image;
+    u64 load_addr_start;
+    u64 load_addr_end;
+    PageTable elf_mmu_table;
+    u8 flags;
     u64 i;
+    u64 j;
 
-    elf_addr = NULL;
+    elf_addr = (void*) 0x0;
+
     // Can hopefully later just do one big read
 
     // Read elf header
@@ -35,6 +44,8 @@ bool load_elf() {
         return false;
     }
 
+    load_addr_start = -1UL;
+    load_addr_end = 0;
     for (i = 0; i < elf_header.e_phnum; i++) {
         // Read program header
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
@@ -42,14 +53,86 @@ bool load_elf() {
             return false;
         }
 
+        if (program_header.p_type != PT_LOAD || program_header.p_memsz <= 0) {
+            continue;
+        }
+
         printf(
             "i: %d, type: 0x%08x, flags: 0x%x, seg_offset: 0x%08x, vaddr: 0x%08lx, paddr: 0x%08lx, filesz: 0x%x, memsz: 0x%x, align: 0x%lx\n",
             i, program_header.p_type, program_header.p_flags, program_header.p_offset, program_header.p_vaddr, program_header.p_paddr,
             program_header.p_filesz, program_header.p_memsz, program_header.p_align
         );
+
+        // Get min and max addresses of load segments
+        if (program_header.p_type == PT_LOAD && program_header.p_memsz > 0) {
+            if (program_header.p_vaddr < load_addr_start) {
+                load_addr_start = program_header.p_vaddr;
+            }
+
+            if (program_header.p_vaddr + program_header.p_memsz > load_addr_end) {
+                load_addr_end = program_header.p_vaddr + program_header.p_memsz;
+            }
+        }
     }
 
-    printf("done\n");
+    // If there are no PT_LOAD types
+    if (load_addr_start > load_addr_end) {
+        printf("load_elf: could not find any PT_LOAD program types\n");
+        return false;
+    }
+
+    image = page_zalloc((load_addr_end - load_addr_start + PS_4K - 1) / PS_4K);
+
+    for (i = 0; i < elf_header.e_phnum; i++) {
+        if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
+            printf("load_elf: program_header %d block_read failed\n", i);
+            page_dealloc(image);
+            return false;
+        }
+
+        if (program_header.p_type != PT_LOAD || program_header.p_memsz <= 0) {
+            continue;
+        }
+
+        if (!block_read_poll(
+            image + (program_header.p_vaddr - load_addr_start),
+            elf_addr + program_header.p_offset,
+            program_header.p_memsz
+        )) {
+            printf("load_elf: segment block_read failed\n");
+            page_dealloc(image);
+            return false;
+        }
+
+        for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
+            flags = mmu_flags(&elf_mmu_table, program_header.p_vaddr + j * PS_4K) | PB_USER;
+            
+            if (program_header.p_flags & PF_R) {
+                flags |= PB_READ;
+            }
+
+            if (program_header.p_flags & PF_W) {
+                flags |= PB_WRITE;
+            }
+
+            if (program_header.p_flags & PF_X) {
+                flags |= PB_EXECUTE;
+            }
+
+            if (!mmu_map(
+                &elf_mmu_table,
+                program_header.p_vaddr + j * PS_4K,
+                (u64) image + (program_header.p_vaddr - load_addr_start),
+                flags
+            )) {
+                printf("load_elf: mmu_map failed\n");
+                page_dealloc(image);
+                return false;
+            }
+        }
+    }
+
+    page_dealloc(image);
 
     return true;
 }
