@@ -6,6 +6,11 @@
 #include <mmu.h>
 
 
+#define PROCESS_KERNEL_PID KERNEL_ASID
+
+#define PROCESS_DEFAULT_QUANTUM 100
+
+
 typedef struct ProcFrame {
     uint64_t gpregs[32];    // 0
     double fpregs[32];      // 256
