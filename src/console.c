@@ -259,8 +259,8 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (!load_elf()) {
-        printf("load_elf failed\n");
+    if (!elf_load()) {
+        printf("elf_load failed\n");
     }
 }
 

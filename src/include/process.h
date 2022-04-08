@@ -60,4 +60,7 @@ typedef struct Process {
 } Process;
 
 
+bool process_init();
 Process* process_new();
+
+bool elf_load(Process* process);

@@ -3939,6 +3939,3 @@ enum
 __END_DECLS
 
 #endif	/* elf.h */
-
-
-bool load_elf();

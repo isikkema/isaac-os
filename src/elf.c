@@ -7,7 +7,7 @@
 #include <printf.h>
 
 
-bool load_elf() {
+bool elf_load() {
     void* elf_addr;
     Elf64_Ehdr elf_header;
     Elf64_Phdr program_header;
@@ -25,22 +25,22 @@ bool load_elf() {
 
     // Read elf header
     if (!block_read_poll(&elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
-        printf("load_elf: elf_header block_read failed\n");
+        printf("elf_load: elf_header block_read failed\n");
         return false;
     }
 
     if (memcmp(elf_header.e_ident, "\x7f""ELF", strlen("\x7f""ELF")) != 0) {
-        printf("load_elf: magic not 0x7fELF: %08x\n", *(u32*) elf_header.e_ident);
+        printf("elf_load: magic not 0x7fELF: %08x\n", *(u32*) elf_header.e_ident);
         return false;
     }
 
     if (elf_header.e_machine != EM_RISCV) {
-        printf("load_elf: machine not RISCV: %d\n", elf_header.e_machine);
+        printf("elf_load: machine not RISCV: %d\n", elf_header.e_machine);
         return false;
     }
 
     if (elf_header.e_type != ET_EXEC) {
-        printf("load_elf: type not executable: %d\n", elf_header.e_type);
+        printf("elf_load: type not executable: %d\n", elf_header.e_type);
         return false;
     }
 
@@ -49,7 +49,7 @@ bool load_elf() {
     for (i = 0; i < elf_header.e_phnum; i++) {
         // Read program header
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("load_elf: program_header %d block_read failed\n", i);
+            printf("elf_load: program_header %d block_read failed\n", i);
             return false;
         }
 
@@ -77,7 +77,7 @@ bool load_elf() {
 
     // If there are no PT_LOAD types
     if (load_addr_start > load_addr_end) {
-        printf("load_elf: could not find any PT_LOAD program types\n");
+        printf("elf_load: could not find any PT_LOAD program types\n");
         return false;
     }
 
@@ -85,7 +85,7 @@ bool load_elf() {
 
     for (i = 0; i < elf_header.e_phnum; i++) {
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("load_elf: program_header %d block_read failed\n", i);
+            printf("elf_load: program_header %d block_read failed\n", i);
             page_dealloc(image);
             return false;
         }
@@ -99,7 +99,7 @@ bool load_elf() {
             elf_addr + program_header.p_offset,
             program_header.p_memsz
         )) {
-            printf("load_elf: segment block_read failed\n");
+            printf("elf_load: segment block_read failed\n");
             page_dealloc(image);
             return false;
         }
@@ -125,7 +125,7 @@ bool load_elf() {
                 (u64) image + (program_header.p_vaddr - load_addr_start),
                 flags
             )) {
-                printf("load_elf: mmu_map failed\n");
+                printf("elf_load: mmu_map failed\n");
                 page_dealloc(image);
                 return false;
             }
