@@ -17,40 +17,43 @@ HartStatus get_hart_status(int hart) {
     return sbi_hart_data[hart].status;
 }
 
-int hart_start(int hart, unsigned long target, int priv_mode) { // todo: change return to bool
-    priv_mode &= 0b1;
-
-    printf("Starting hart %d at 0x%08x in mode %d\n", hart, target, priv_mode);
+bool hart_start(int hart, uint64_t target, uint64_t scratch) {
+    printf("Starting hart %d at 0x%08x with sscratch at 0x%08x\n", hart, target, scratch);
 
     if (!IS_VALID_HART(hart)) {
-        return 0;
+        return false;
     }
 
     if (!mutex_trylock(&sbi_hart_data[hart].lock)) {
-        return 0;
+        return false;
     }
     
+    if (sbi_hart_data[hart].status != HS_STOPPED) {
+        mutex_unlock(&sbi_hart_data[hart].lock);
+        return false;
+    }
+
     sbi_hart_data[hart].status = HS_STARTING;
     sbi_hart_data[hart].target_address = target;
-    sbi_hart_data[hart].priv = priv_mode;
+    sbi_hart_data[hart].scratch = scratch;
     clint_set_msip(hart);
 
     mutex_unlock(&sbi_hart_data[hart].lock);
-    return 1;
+    return true;
 }
 
-int hart_stop(int hart) {
+bool hart_stop(int hart) {
     if (!IS_VALID_HART(hart)) {
-        return 0;
+        return false;
     }
 
     if (!mutex_trylock(&sbi_hart_data[hart].lock)) {
-        return 0;
+        return false;
     }
 
     if (sbi_hart_data[hart].status != HS_STARTED) {
         mutex_unlock(&sbi_hart_data[hart].lock);
-        return 0;
+        return false;
     }
 
     sbi_hart_data[hart].status = HS_STOPPED;
@@ -67,8 +70,7 @@ int hart_stop(int hart) {
     MRET();
 
     // In case we didn't mret
-    mutex_unlock(&sbi_hart_data[hart].lock);
-    return 0;
+    return false;
 }
 
 void hart_handle_msip(int hart) {
@@ -82,16 +84,26 @@ void hart_handle_msip(int hart) {
 
     printf("handling msip -- %d -- %d\n", hart, sbi_hart_data[hart].status);
 
-    if (sbi_hart_data[hart].status == HS_STARTING) {
-        CSR_WRITE("mepc", sbi_hart_data[hart].target_address);
-        CSR_WRITE("mstatus", (sbi_hart_data[hart].priv << MSTATUS_MPP_BIT) | MSTATUS_MPIE | MSTATUS_FS_INITIAL);
-        CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE);
-        CSR_WRITE("mideleg", SIP_SEIP | SIP_SSIP | SIP_STIP);
-        CSR_WRITE("medeleg", MEDELEG_ALL);
-        CSR_WRITE("sscratch", hart);
-
-        sbi_hart_data[hart].status = HS_STARTED;
+    if (sbi_hart_data[hart].status != HS_STARTING) {
+        mutex_unlock(&sbi_hart_data[hart].lock);
+        return;
     }
+
+    int current_hart;
+    CSR_READ(current_hart, "mhartid");
+    printf("hanging on hart %d...\n", current_hart);
+    while (true) {
+        WFI();
+    }
+
+    CSR_WRITE("mepc", sbi_hart_data[hart].target_address);
+    CSR_WRITE("mstatus", MSTATUS_MPP_SUPERVISOR | MSTATUS_MPIE | MSTATUS_FS_INITIAL);
+    CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE);
+    CSR_WRITE("mideleg", SIP_SEIP | SIP_SSIP | SIP_STIP);
+    CSR_WRITE("medeleg", MEDELEG_ALL);
+    CSR_WRITE("sscratch", sbi_hart_data[hart].scratch);
+
+    sbi_hart_data[hart].status = HS_STARTED;
 
     mutex_unlock(&sbi_hart_data[hart].lock);
     MRET();

@@ -34,11 +34,11 @@ bool pci_init() {
     return true;
 }
 
-void bitset_insert(u64 bitset[], u8 val) {
+void pci_bitset_insert(u64 bitset[], u8 val) {
     bitset[val / sizeof(u64)] |= 1UL << (val % sizeof(u64));
 }
 
-bool bitset_find(u64 bitset[], u8 val) {
+bool pci_bitset_find(u64 bitset[], u8 val) {
     return (bitset[val / sizeof(u64)] >> (val % sizeof(u64))) & 0b1;
 }
 
@@ -159,7 +159,7 @@ u32 pci_setup_bridge(volatile EcamHeader* bridge_ecam, u32 bridge_bus, u32 free_
     bridge_ecam->command_reg = PCI_COMMAND_REG_MEMORY_SPACE | PCI_COMMAND_REG_BUS_MASTER;
 
     // Find next bus which is between the current bus and 256 and isn't already being used
-    while (free_bus_no < PCI_NUM_BUSES && (free_bus_no <= bridge_bus || bitset_find(used_buses_bitset, free_bus_no))) {
+    while (free_bus_no < PCI_NUM_BUSES && (free_bus_no <= bridge_bus || pci_bitset_find(used_buses_bitset, free_bus_no))) {
         free_bus_no++;
     }
 
@@ -176,7 +176,7 @@ u32 pci_setup_bridge(volatile EcamHeader* bridge_ecam, u32 bridge_bus, u32 free_
     bus_to_bridge_map[free_bus_no] = bridge_ecam;
 
     // Set secondary bus as used
-    bitset_insert(used_buses_bitset, free_bus_no);
+    pci_bitset_insert(used_buses_bitset, free_bus_no);
 
     return free_bus_no + 1;
 }
@@ -202,7 +202,7 @@ bool pci_discover() {
             }
 
             // Set bus as used
-            bitset_insert(used_buses_bitset, bus);
+            pci_bitset_insert(used_buses_bitset, bus);
 
             break;
         }

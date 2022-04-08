@@ -32,8 +32,8 @@ void svccall_handle(int hart) {
         case SBI_HART_START: ;
             int             hart_to_start = mscratch[XREG_A0];
             unsigned long   target = mscratch[XREG_A1];
-            int             priv_mode = mscratch[XREG_A2];
-            mscratch[XREG_A0] = hart_start(hart_to_start, target, priv_mode);
+            unsigned long   scratch = mscratch[XREG_A2];
+            mscratch[XREG_A0] = hart_start(hart_to_start, target, scratch);
             break;
         
         case SBI_HART_STOP:

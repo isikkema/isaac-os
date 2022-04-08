@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <lock.h>
 
 
@@ -27,8 +29,8 @@ typedef enum HartPriviledgeMode {
 typedef struct HartData {
     Mutex lock;
     HartStatus status;
-    HartPriviledgeMode priv;
-    unsigned long target_address;
+    uint64_t target_address;
+    uint64_t scratch;
 } HartData;
 
 
@@ -36,6 +38,6 @@ extern HartData sbi_hart_data[NUM_HARTS];
 
 
 HartStatus get_hart_status(int hart);
-int hart_start(int hart, unsigned long target, int priv_mode);
-int hart_stop(int hart);
+bool hart_start(int hart, uint64_t target, uint64_t scratch);
+bool hart_stop(int hart);
 void hart_handle_msip(int hart);

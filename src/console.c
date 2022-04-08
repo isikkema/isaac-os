@@ -15,7 +15,7 @@
 #include <block.h>
 #include <gpu.h>
 #include <input.h>
-#include <elf.h>
+#include <process.h>
 
 
 char blocking_getchar() {
@@ -225,6 +225,33 @@ void poweroff() {
     sbi_poweroff();
 }
 
+void start_hart(int argc, char** args) {
+    int hart;
+    Process* process;
+
+    if (argc < 2) {
+        printf("start: not enough arguments\n");
+        return;
+    }
+
+    hart = atoi(args[1]);
+    if (hart == 0) {
+        printf("start: invalid argument: %s\n", args[1]);
+        return;
+    }
+
+    process = process_new();
+    if (!elf_load((void*) 0x0, process)) {
+        printf("start: elf_load failed\n");
+        // todo: process_free(process);
+        return;
+    }
+
+    if (!sbi_hart_start(hart, (u64) hart_start_start, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
+        printf("start: sbi_hart_start failed\n");
+    }
+}
+
 void print_args(int argc, char** args) {
     int i;
 
@@ -259,9 +286,7 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (!elf_load()) {
-        printf("elf_load failed\n");
-    }
+    
 }
 
 void random(int argc, char** args) {
@@ -408,21 +433,4 @@ void gpu(int argc, char** args) {
         printf("usage: gpu size|draw\n");
         return;
     }
-}
-
-void start_hart(int argc, char** args) {
-    int hart;
-
-    if (argc < 2) {
-        printf("start: not enough arguments\n");
-        return;
-    }
-
-    hart = atoi(args[1]);
-    if (hart == 0) {
-        printf("start: invalid argument: %s\n", args[1]);
-        return;
-    }
-
-    sbi_hart_start(hart, (unsigned long) hart_start_start, 1);
 }

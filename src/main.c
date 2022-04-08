@@ -10,6 +10,7 @@
 #include <plic.h>
 #include <gpu.h>
 #include <input.h>
+#include <process.h>
 #include <rs_int.h>
 
 
@@ -82,6 +83,11 @@ int main(int hart) {
 
     if (!gpu_fill_and_flush(0, (VirtioGpuRectangle) {width/4, height/4, width/2, height/2}, (VirtioGpuPixel) {0, 255, 255, 255})) {
         printf("gpu_fill_and_fluh failed\n");
+        return 1;
+    }
+
+    if (!process_init()) {
+        printf("process_init failed\n");
         return 1;
     }
 

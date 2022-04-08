@@ -6,7 +6,7 @@
 
 typedef struct ListNode {
     void* data;
-    ListNode* next;
+    struct ListNode* next;
 } ListNode;
 
 typedef struct List {

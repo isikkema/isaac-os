@@ -33,21 +33,21 @@ HartStatus sbi_get_hart_status(int hart) {
     return status;
 }
 
-int sbi_hart_start(int hart, unsigned long target, int priv_mode) {
-    int started;
+bool sbi_hart_start(int hart, uint64_t target, uint64_t scratch) {
+    bool started;
 
     // a7: SBI_HART_START
     // a0: hart
     // a1: target
-    // a2: priv_mode
-    asm volatile ("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(started) : "r"(SBI_HART_START), "r"(hart), "r"(target), "r"(priv_mode) : "a7", "a0", "a1", "a2");
+    // a2: scratch
+    asm volatile ("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(started) : "r"(SBI_HART_START), "r"(hart), "r"(target), "r"(scratch) : "a7", "a0", "a1", "a2");
     // a0: started
 
     return started;
 }
 
-int sbi_hart_stop(void) {
-    int stopped;
+bool sbi_hart_stop(void) {
+    bool stopped;
 
     asm volatile ("mv a7, %1\necall\nmv %0, a0" : "=r"(stopped) : "r"(SBI_HART_STOP) : "a7", "a0");
 

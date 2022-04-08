@@ -55,8 +55,7 @@ Process* process_new() {
 }
 
 
-bool elf_load(Process* process) {
-    void* elf_addr;
+bool elf_load(void* elf_addr, Process* process) {
     Elf64_Ehdr elf_header;
     Elf64_Phdr program_header;
     void* image;
@@ -66,8 +65,6 @@ bool elf_load(Process* process) {
     u8 flags;
     u64 i;
     u64 j;
-
-    elf_addr = (void*) 0x0;
 
     // Can hopefully later just do one big read
 
@@ -185,6 +182,8 @@ bool elf_load(Process* process) {
     for (i = 0; i < num_load_pages; i++) {
         list_insert(process->rcb.image_pages, image + PS_4K * i);
     }
+
+    process->frame.sepc = elf_header.e_entry;
 
     return true;
 }
