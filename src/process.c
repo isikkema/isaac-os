@@ -48,7 +48,7 @@ Process* process_new() {
     p->rcb.stack_pages = list_new();
     p->rcb.heap_pages = list_new();
     p->rcb.file_descriptors = list_new();
-    p->rcb.ptable = page_alloc(1);
+    p->rcb.ptable = page_zalloc(1);
 
     p->quantum = PROCESS_DEFAULT_QUANTUM;
     p->pid = get_avail_pid();
@@ -81,7 +81,7 @@ bool process_prepare(Process* process) {
     list_insert(process->rcb.stack_pages, stack);
 
     process->frame.gpregs[XREG_SP] = 0x1beef0000UL + PS_4K;
-    process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_SUPERVISOR;
+    process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_USER;
     process->frame.sie = SIE_SEIE | SIE_SSIE | SIE_STIE;
     process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(process->rcb.ptable);
     process->frame.sscratch = (u64) &process->frame;
@@ -89,6 +89,12 @@ bool process_prepare(Process* process) {
     // todo: this
     process->frame.stvec = (u64) park;
     process->frame.trap_satp = 0;
+
+    if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
+        printf("process_init: stack mmu_map failed\n");
+        page_dealloc(stack);
+        return false;
+    }
 
     return true;
 }
@@ -207,7 +213,7 @@ bool elf_load(void* elf_addr, Process* process) {
             if (!mmu_map(
                 process->rcb.ptable,
                 program_header.p_vaddr + j * PS_4K,
-                (u64) image + (program_header.p_vaddr - load_addr_start),
+                (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
                 flags
             )) {
                 printf("elf_load: mmu_map failed\n");

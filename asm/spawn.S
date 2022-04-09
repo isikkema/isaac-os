@@ -18,8 +18,6 @@
 
 .section .text
 process_spawn:
-    wfi
-
     csrrw   t6, sscratch, t6
 
     # # Save 30 gp regs into frame
@@ -51,6 +49,8 @@ process_spawn:
     # stvec       552
     # trap_satp   560
     # trap_stack  568
+
+    ld      sp, 0+8*2(t6)
 
     ld      t0, 512(t6)
     csrw    sepc, t0
