@@ -6,6 +6,9 @@
 #include <block.h>
 #include <string.h>
 #include <mmu.h>
+#include <csr.h>
+#include <start.h>
+#include <spawn.h>
 #include <rs_int.h>
 #include <printf.h>
 
@@ -52,6 +55,42 @@ Process* process_new() {
     p->on_hart = -1;
 
     return p;
+}
+
+bool process_prepare(Process* process) {
+    void* stack;
+
+    printf("0x%08lx 0x%08lx\n", process_spawn_addr, process_spawn_size);
+    if (!mmu_map_many(process->rcb.ptable, (u64) process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) process_spawn_addr), (u64) process_spawn_size, PB_EXECUTE)) {
+        printf("process_init: process spawn mmu_map_many failed\n");
+        return false;
+    }
+
+    if (!mmu_map_many(process->rcb.ptable, (u64) &process->frame, mmu_translate(kernel_mmu_table, (u64) &process->frame), sizeof(ProcFrame), PB_READ | PB_WRITE)) {
+        printf("process_init: process frame mmu_map_many failed\n");
+        return false;
+    }
+
+    stack = page_zalloc(1);
+    if (!mmu_map(process->rcb.ptable, 0x1beef0000UL, mmu_translate(kernel_mmu_table, (u64) stack), PB_USER | PB_READ | PB_WRITE)) {
+        printf("process_init: stack mmu_map failed\n");
+        page_dealloc(stack);
+        return false;
+    }
+
+    list_insert(process->rcb.stack_pages, stack);
+
+    process->frame.gpregs[XREG_SP] = 0x1beef0000UL + PS_4K;
+    process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_SUPERVISOR;
+    process->frame.sie = SIE_SEIE | SIE_SSIE | SIE_STIE;
+    process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(process->rcb.ptable);
+    process->frame.sscratch = (u64) &process->frame;
+    
+    // todo: this
+    process->frame.stvec = (u64) park;
+    process->frame.trap_satp = 0;
+
+    return true;
 }
 
 

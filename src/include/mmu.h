@@ -20,7 +20,7 @@
 #define SATP_PPN_BIT     0
 #define SATP_SET_ASID(x) ((((uint64_t)x) & 0xFFFF) << 44)
 
-#define GET_PPN(x)  ((((uint64_t)x) >> 12) & 0xFFFFFFFFFFFUL)
+#define SATP_GET_PPN(x)  ((((uint64_t)x) >> 12) & 0xFFFFFFFFFFFUL)
 
 #define KERNEL_ASID 0xFFFFUL
 

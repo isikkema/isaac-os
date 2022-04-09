@@ -89,13 +89,6 @@ void hart_handle_msip(int hart) {
         return;
     }
 
-    int current_hart;
-    CSR_READ(current_hart, "mhartid");
-    printf("hanging on hart %d...\n", current_hart);
-    while (true) {
-        WFI();
-    }
-
     CSR_WRITE("mepc", sbi_hart_data[hart].target_address);
     CSR_WRITE("mstatus", MSTATUS_MPP_SUPERVISOR | MSTATUS_MPIE | MSTATUS_FS_INITIAL);
     CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE);

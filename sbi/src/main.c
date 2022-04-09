@@ -49,7 +49,7 @@ int main(int hartid) {
         pmp_init();
 
         sbi_hart_data[hartid].status = HS_STARTED;
-        sbi_hart_data[hartid].priv = HPM_MACHINE;
+        sbi_hart_data[hartid].scratch = HPM_MACHINE;
         sbi_hart_data[hartid].target_address = 0x0;
 
         CSR_WRITE("mscratch", SBI_GPREGS[hartid]);
@@ -74,7 +74,7 @@ int main(int hartid) {
     pmp_init();
 
     sbi_hart_data[hartid].status = HS_STOPPED;
-    sbi_hart_data[hartid].priv = HPM_MACHINE;
+    sbi_hart_data[hartid].scratch = HPM_MACHINE;
     sbi_hart_data[hartid].target_address = 0x0;
 
     CSR_WRITE("mscratch", SBI_GPREGS[hartid]);

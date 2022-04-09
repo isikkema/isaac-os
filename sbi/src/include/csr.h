@@ -1,27 +1,40 @@
+#pragma once
+
 // CSR_READ(variable, "register"). Must use quotes for the register name.
-#define CSR_READ(var, csr)    asm volatile("csrr %0, " csr : "=r"(var))
+#define CSR_READ(var, csr)  asm volatile("csrr %0, " csr : "=r"(var))
 
 // CSR_WRITE("register", variable). Must use quotes for the register name.
-#define CSR_WRITE(csr, var)   asm volatile("csrw " csr ", %0" :: "r"(var))
+#define CSR_WRITE(csr, var) asm volatile("csrw " csr ", %0" ::"r"(var))
 
+#define SFENCE()            asm volatile("sfence.vma");
+#define SFENCE_ASID(x)      asm volatile("sfence.vma zero, %0" ::"r"(x))
+#define SFENCE_VMA(x)       asm volatile("sfence.vma %0, zero" ::"r"(x))
+#define SFENCE_ALL(vma, asid) \
+    asm volatile("sfence.vma %0, %1" ::"r"(vma), "r"(asid))
 
-#define SFENCE()                asm volatile("sfence.vma");
-#define SFENCE_ASID(x)          asm volatile("sfence.vma zero, %0" :: "r"(x))
-#define SFENCE_VMA(x)           asm volatile("sfence.vma %0, zero" :: "r"(x))
-#define SFENCE_ALL(vma, asid)   asm volatile("sfence.vma %0, %1" :: "r"(vma), "r"(asid))
+#define MRET() asm volatile("mret")
+#define SRET() asm volatile("sret")
+#define WFI()  asm volatile("wfi")
 
-
-#define MRET()  asm volatile("mret")
-#define SRET()  asm volatile("sret")
-#define WFI()   asm volatile("wfi")
+#define WFI_LOOP() \
+    do {           \
+        WFI();     \
+    } while (1)
 
 #define MSTATUS_MPP_BIT           11
 #define MSTATUS_MPP_MACHINE       (3UL << MSTATUS_MPP_BIT)
 #define MSTATUS_MPP_SUPERVISOR    (1UL << MSTATUS_MPP_BIT)
 #define MSTATUS_MPP_USER          (0UL << MSTATUS_MPP_BIT)
 
+#define SSTATUS_SPP_BIT           8
+#define SSTATUS_SPP_SUPERVISOR    (1UL << SSTATUS_SPP_BIT)
+#define SSTATUS_SPP_USER          (0UL << SSTATUS_SPP_BIT)
+
 #define MSTATUS_MPIE_BIT          7
 #define MSTATUS_MPIE              (1UL << MSTATUS_MPIE_BIT)
+
+#define SSTATUS_SPIE_BIT          5
+#define SSTATUS_SPIE              (1UL << SSTATUS_SPIE_BIT)
 
 #define MSTATUS_FS_BIT            13
 #define MSTATUS_FS_OFF            (0UL << MSTATUS_FS_BIT)
@@ -29,6 +42,11 @@
 #define MSTATUS_FS_CLEAN          (2UL << MSTATUS_FS_BIT)
 #define MSTATUS_FS_DIRTY          (3UL << MSTATUS_FS_BIT)
 
+#define SSTATUS_FS_BIT            13
+#define SSTATUS_FS_OFF            (0UL << SSTATUS_FS_BIT)
+#define SSTATUS_FS_INITIAL        (1UL << SSTATUS_FS_BIT)
+#define SSTATUS_FS_CLEAN          (2UL << SSTATUS_FS_BIT)
+#define SSTATUS_FS_DIRTY          (3UL << SSTATUS_FS_BIT)
 
 #define MEIE_BIT                  11
 #define MEIP_BIT                  MEIE_BIT
@@ -63,7 +81,6 @@
 #define SIE_SSIE                  MIE_SSIE
 #define SIP_SSIP                  SIE_SSIE
 
-
 #define MEX_INSTR_ADDR_MISALIGN   (0)
 #define MEX_INSTR_ACCESS_FAULT    (1)
 #define MEX_ILLEGAL_INSTR         (2)
@@ -80,7 +97,6 @@
 #define MEX_STORE_PAGE_FAULT      (15)
 
 #define MEDELEG_ALL               (0xB1F7UL)
-
 
 #define XREG_ZERO                 (0)
 #define XREG_RA                   (1)
@@ -114,13 +130,21 @@
 #define XREG_T4                   (29)
 #define XREG_T5                   (30)
 #define XREG_T6                   (31)
+#define XREG_NUM                  (32)
+#define FREG_NUM                  (32)
 
 #define MCAUSE_IS_ASYNC(x)        (((x) >> 63) & 1)
-#define MCAUSE_NUM(x)             ((x) & 0xffUL)
+#define MCAUSE_NUM(x)             ((x)&0xffUL)
 
+#define SCAUSE_IS_ASYNC(x)        (((x) >> 63) & 1)
+#define SCAUSE_NUM(x)             ((x)&0xffUL)
 
-#define ATTR_NAKED_NORET          __attribute__((naked,noreturn))
+#define ATTR_NAKED_NORET          __attribute__((naked, noreturn))
 #define ATTR_NAKED                __attribute__((naked))
 #define ATTR_NORET                __attribute__((noreturn))
 
+#define MAX_ALLOWABLE_HARTS       8
+
 #define OS_LOAD_ADDR              (0x80050000UL)
+
+#define VIRT_TIMER_FREQ           100000UL

@@ -29,15 +29,3 @@ park:
     wfi         # Wait-For-Interrupt (Wii)
     j    park
 
-.global hart_start_start
-hart_start_start:
-    la      sp, _stack_end
-    la      gp, __global_pointer$
-
-    # Multiple stacks again
-    csrr    t0, sscratch
-    li      t1, 4096
-    mul     t0, t0, t1
-    sub     sp, sp, t0
-
-    tail    test_function

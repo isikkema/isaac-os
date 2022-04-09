@@ -16,6 +16,7 @@
 #include <gpu.h>
 #include <input.h>
 #include <process.h>
+#include <spawn.h>
 
 
 char blocking_getchar() {
@@ -241,15 +242,24 @@ void start_hart(int argc, char** args) {
     }
 
     process = process_new();
+    
     if (!elf_load((void*) 0x0, process)) {
         printf("start: elf_load failed\n");
         // todo: process_free(process);
         return;
     }
 
-    if (!sbi_hart_start(hart, (u64) hart_start_start, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
+    if (!process_prepare(process)) {
+        printf("start: process_prepare failed\n");
+        // free
+        return;
+    }
+
+    if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
         printf("start: sbi_hart_start failed\n");
     }
+
+    // free
 }
 
 void print_args(int argc, char** args) {

@@ -23,7 +23,7 @@ bool mmu_init() {
 	if (!mmu_map_many(kernel_mmu_table, _STACK_START,    _STACK_START,   (_STACK_END-_STACK_START),      PB_READ | PB_WRITE))   return false;
 	if (!mmu_map_many(kernel_mmu_table, _HEAP_START,     _HEAP_START,    (_HEAP_END-_HEAP_START),        PB_READ | PB_WRITE))   return false;
 
-    CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | GET_PPN(kernel_mmu_table));
+    CSR_WRITE("satp", SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | SATP_GET_PPN(kernel_mmu_table));
     SFENCE();    
 
     return true;
@@ -47,7 +47,7 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
         entry = tb->entries[vpn[i]];
         if (!(entry & PB_VALID)) {
             // Create a new table
-            ppn = GET_PPN(page_zalloc(1));
+            ppn = SATP_GET_PPN(page_zalloc(1));
             entry = (ppn << 10) | PB_VALID;
             tb->entries[vpn[i]] = entry;
         } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) {
@@ -71,7 +71,7 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
     // }
 
     // Set entry to paddr's ppn
-    entry = (GET_PPN(paddr) << 10) | bits | PB_VALID;
+    entry = (SATP_GET_PPN(paddr) << 10) | bits | PB_VALID;
     tb->entries[vpn[0]] = entry;
 
     mutex_unlock(&mmu_lock);
