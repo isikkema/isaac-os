@@ -81,10 +81,7 @@ void process_free(Process* process) {
     list_free(process->rcb.heap_pages);
     list_free(process->rcb.file_descriptors);
 
-    // Somewhere, I'm overwriting/corrupting part of this page table.
-    // So I can't properly free it yet.
-    // mmu_free(process->rcb.ptable)
-    page_dealloc(process->rcb.ptable);
+    mmu_free(process->rcb.ptable);
 
     // todo: be better
     if ((void*) process->frame.trap_stack != NULL) {
@@ -130,7 +127,7 @@ bool process_prepare(Process* process) {
     
     process->frame.stvec = process_trap_vector_addr;
     process->frame.trap_satp = SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | SATP_GET_PPN(kernel_mmu_table);
-    process->frame.trap_stack = (u64) page_zalloc(1);   // This is wasteful
+    process->frame.trap_stack = (u64) page_zalloc(1) + PS_4K;   // This is wasteful
 
     return true;
 }
