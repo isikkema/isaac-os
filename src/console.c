@@ -245,13 +245,13 @@ void start_hart(int argc, char** args) {
     
     if (!elf_load((void*) 0x0, process)) {
         printf("start: elf_load failed\n");
-        // todo: process_free(process);
+        process_free(process);
         return;
     }
 
     if (!process_prepare(process)) {
         printf("start: process_prepare failed\n");
-        // free
+        process_free(process);
         return;
     }
 
@@ -276,7 +276,7 @@ void start_hart(int argc, char** args) {
 
     printf("]\n\n");
 
-    // free
+    process_free(process);
 }
 
 void print_args(int argc, char** args) {

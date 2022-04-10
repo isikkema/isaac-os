@@ -57,6 +57,44 @@ Process* process_new() {
     return p;
 }
 
+void process_free(Process* process) {
+    ListNode* it;
+
+    for (it = process->rcb.image_pages->head; it != NULL; it = it->next) {
+        page_dealloc(it->data);
+    }
+
+    for (it = process->rcb.stack_pages->head; it != NULL; it = it->next) {
+        page_dealloc(it->data);
+    }
+
+    for (it = process->rcb.heap_pages->head; it != NULL; it = it->next) {
+        page_dealloc(it->data);
+    }
+
+    for (it = process->rcb.file_descriptors->head; it != NULL; it = it->next) {
+        kfree(it->data);
+    }
+
+    list_free(process->rcb.image_pages);
+    list_free(process->rcb.stack_pages);
+    list_free(process->rcb.heap_pages);
+    list_free(process->rcb.file_descriptors);
+
+    // Somewhere, I'm overwriting/corrupting part of this page table.
+    // So I can't properly free it yet.
+    // mmu_free(process->rcb.ptable)
+    page_dealloc(process->rcb.ptable);
+
+    // todo: be better
+    if ((void*) process->frame.trap_stack != NULL) {
+        page_dealloc((void*) process->frame.trap_stack);
+    }
+
+    kfree(process);
+}
+
+
 bool process_prepare(Process* process) {
     void* stack;
 
@@ -202,6 +240,13 @@ bool elf_load(void* elf_addr, Process* process) {
                 flags |= PB_EXECUTE;
             }
 
+            printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx, flags: 0x%x\n",
+                process->rcb.ptable,
+                program_header.p_vaddr + j * PS_4K,
+                (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
+                flags
+            );
+
             if (!mmu_map(
                 process->rcb.ptable,
                 program_header.p_vaddr + j * PS_4K,
@@ -216,9 +261,7 @@ bool elf_load(void* elf_addr, Process* process) {
     }
 
     // Add image to process
-    for (i = 0; i < num_load_pages; i++) {
-        list_insert(process->rcb.image_pages, image + PS_4K * i);
-    }
+    list_insert(process->rcb.image_pages, image);
 
     process->frame.sepc = elf_header.e_entry;
 

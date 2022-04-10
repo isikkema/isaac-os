@@ -62,6 +62,7 @@ typedef struct Process {
 
 bool process_init();
 Process* process_new();
+void process_free(Process* process);
 bool process_prepare(Process* process);
 
 bool elf_load(void* elf_addr, Process* process);

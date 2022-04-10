@@ -6,6 +6,22 @@ List* list_new() {
     return kzalloc(sizeof(List));
 }
 
+void list_free(List* list) {
+    ListNode* it;
+    ListNode* nit;
+
+    it = list->head;
+    while (it != NULL) {
+        nit = it->next;
+
+        kfree(it);
+
+        it = nit;
+    }
+
+    kfree(list);
+}
+
 ListNode* list_find(List* list, void* data) {
     ListNode* it;
 
