@@ -19,6 +19,10 @@ void c_trap(void) {
     is_async = MCAUSE_IS_ASYNC(scause);
     scause = MCAUSE_NUM(scause);
 
+    if (hart != 0) {
+        printf("c_trap: hart %d was here. async: %d, cause: %d\n", hart, is_async, scause);
+    }
+
     if (is_async) {
         switch (scause) {
             case 9:
@@ -32,8 +36,10 @@ void c_trap(void) {
         switch (scause) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
-                printf("waiting for interrupt...\n");
-                WFI();
+                if (hart == 0) {
+                    printf("waiting for interrupt...\n");
+                    WFI();
+                }
         }
     }
 }

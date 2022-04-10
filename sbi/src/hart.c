@@ -18,8 +18,6 @@ HartStatus get_hart_status(int hart) {
 }
 
 bool hart_start(int hart, uint64_t target, uint64_t scratch) {
-    printf("Starting hart %d at 0x%08x with sscratch at 0x%08x\n", hart, target, scratch);
-
     if (!IS_VALID_HART(hart)) {
         return false;
     }
@@ -32,6 +30,8 @@ bool hart_start(int hart, uint64_t target, uint64_t scratch) {
         mutex_unlock(&sbi_hart_data[hart].lock);
         return false;
     }
+
+    printf("hart_start: starting hart %d...\n", hart);
 
     sbi_hart_data[hart].status = HS_STARTING;
     sbi_hart_data[hart].target_address = target;
@@ -55,6 +55,8 @@ bool hart_stop(int hart) {
         mutex_unlock(&sbi_hart_data[hart].lock);
         return false;
     }
+
+    printf("hart_stop: stopping hart %d...\n", hart);
 
     sbi_hart_data[hart].status = HS_STOPPED;
     CSR_WRITE("mepc", park);
@@ -81,8 +83,6 @@ void hart_handle_msip(int hart) {
     mutex_sbi_lock(&sbi_hart_data[hart].lock);
 
     clint_unset_msip(hart);
-
-    printf("handling msip -- %d -- %d\n", hart, sbi_hart_data[hart].status);
 
     if (sbi_hart_data[hart].status != HS_STARTING) {
         mutex_unlock(&sbi_hart_data[hart].lock);

@@ -28,7 +28,6 @@ void c_trap(void) {
     if (is_async) {
         switch (mcause) {
             case 3: // MSIP
-                printf("GOT MSIP\n");
                 hart_handle_msip(mhartid);
                 break;
 

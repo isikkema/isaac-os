@@ -20,25 +20,6 @@
 process_spawn:
     csrrw   t6, sscratch, t6
 
-    # # Save 30 gp regs into frame
-    # .set i, 1
-    # .rept 30
-    #     savegp %i
-    #     .set i, i + 1
-    # .endr
-
-    # # Save all fp regs into frame
-    # .set i, 1
-    # .rept 31
-    #     savefp %i
-    #     .set i, i + 1
-    # .endr
-
-    # # Save last gp reg into frame
-    # mv      t5, t6
-    # csrrw   t6, sscratch, t6
-    # sd      t6, 8*31(t5)
-
     # gpregs      0
     # fpregs      256
     # sepc        512
@@ -79,8 +60,72 @@ process_spawn:
 .align 4
 process_spawn_end:
 
+
+.align 4
+process_trap_vector:
+    csrrw   t6, sscratch, t6
+
+    # Save 30 gp regs into frame
+    .set i, 1
+    .rept 30
+        savegp %i
+        .set i, i + 1
+    .endr
+
+    # Save all fp regs into frame
+    .set i, 1
+    .rept 31
+        savefp %i
+        .set i, i + 1
+    .endr
+
+    # Save last gp reg into frame
+    mv      t5, t6
+    csrrw   t6, sscratch, t6
+    sd      t6, 8*31(t5)
+
+    # Trap values
+    ld      t0, 560(t5)
+    csrw    satp, t0
+    
+    ld      sp, 568(t5)
+
+    # Go into C
+    call c_trap
+
+    # This is for when we have good code for processes.
+    # For now, we just wanna stop the hart by any means necessary.
+
+    # csrr    t6, sscratch
+
+    # # Load frame back
+    # .set i, 1
+    # .rept 31
+    #     loadfp %i
+    #     .set i, i + 1
+    # .endr
+
+    # .set i, 1
+    # .rept 31
+    #     loadgp %i
+    #     .set i, i + 1
+    # .endr
+
+    # sret
+
+    call sbi_hart_stop
+    tail park
+
+.align 4
+process_trap_vector_end:
+
+
 .section .rodata
 .global process_spawn_addr
 .global process_spawn_size
+.global process_trap_vector_addr
+.global process_trap_vector_size
 process_spawn_addr: .dword process_spawn
 process_spawn_size: .dword process_spawn_end - process_spawn
+process_trap_vector_addr: .dword process_trap_vector
+process_trap_vector_size: .dword process_trap_vector_end - process_trap_vector

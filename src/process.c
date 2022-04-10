@@ -60,9 +60,13 @@ Process* process_new() {
 bool process_prepare(Process* process) {
     void* stack;
 
-    printf("0x%08lx 0x%08lx\n", process_spawn_addr, process_spawn_size);
     if (!mmu_map_many(process->rcb.ptable, (u64) process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) process_spawn_addr), (u64) process_spawn_size, PB_EXECUTE)) {
         printf("process_init: process spawn mmu_map_many failed\n");
+        return false;
+    }
+
+    if (!mmu_map_many(process->rcb.ptable, process_trap_vector_addr, mmu_translate(kernel_mmu_table, (u64) process_trap_vector_addr), (u64) process_trap_vector_size, PB_EXECUTE)) {
+        printf("process_init: process trap vector mmu_map_many failed\n");
         return false;
     }
 
@@ -86,15 +90,9 @@ bool process_prepare(Process* process) {
     process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(process->rcb.ptable);
     process->frame.sscratch = (u64) &process->frame;
     
-    // todo: this
-    process->frame.stvec = (u64) park;
-    process->frame.trap_satp = 0;
-
-    if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
-        printf("process_init: stack mmu_map failed\n");
-        page_dealloc(stack);
-        return false;
-    }
+    process->frame.stvec = process_trap_vector_addr;
+    process->frame.trap_satp = SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | SATP_GET_PPN(kernel_mmu_table);
+    process->frame.trap_stack = (u64) page_zalloc(1);   // This is wasteful
 
     return true;
 }
@@ -111,7 +109,7 @@ bool elf_load(void* elf_addr, Process* process) {
     u64 i;
     u64 j;
 
-    // Can hopefully later just do one big read
+    // todo: Can hopefully later just do one big read
 
     // Read elf header
     if (!block_read_poll(&elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
@@ -119,8 +117,8 @@ bool elf_load(void* elf_addr, Process* process) {
         return false;
     }
 
-    if (memcmp(elf_header.e_ident, "\x7f""ELF", strlen("\x7f""ELF")) != 0) {
-        printf("elf_load: magic not 0x7fELF: %08x\n", *(u32*) elf_header.e_ident);
+    if (memcmp(elf_header.e_ident, ELFMAG, strlen(ELFMAG)) != 0) {
+        printf("elf_load: magic not 0x%s: %018lx\n", ELFMAG, *(u64*) elf_header.e_ident);
         return false;
     }
 
@@ -146,12 +144,6 @@ bool elf_load(void* elf_addr, Process* process) {
         if (program_header.p_type != PT_LOAD || program_header.p_memsz <= 0) {
             continue;
         }
-
-        printf(
-            "i: %d, type: 0x%08x, flags: 0x%x, seg_offset: 0x%08x, vaddr: 0x%08lx, paddr: 0x%08lx, filesz: 0x%x, memsz: 0x%x, align: 0x%lx\n",
-            i, program_header.p_type, program_header.p_flags, program_header.p_offset, program_header.p_vaddr, program_header.p_paddr,
-            program_header.p_filesz, program_header.p_memsz, program_header.p_align
-        );
 
         // Get min and max addresses of load segments
         if (program_header.p_type == PT_LOAD && program_header.p_memsz > 0) {
@@ -197,7 +189,7 @@ bool elf_load(void* elf_addr, Process* process) {
 
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
             flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | PB_USER;
-            
+
             if (program_header.p_flags & PF_R) {
                 flags |= PB_READ;
             }

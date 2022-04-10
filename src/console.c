@@ -255,28 +255,26 @@ void start_hart(int argc, char** args) {
         return;
     }
 
-    printf("sepc: 0x%08lx\n", process->frame.sepc);
-    printf("psepc: 0x%08lx\n", mmu_translate(process->rcb.ptable, process->frame.sepc));
-
-    printf("Before:\n");
+    printf("\nBefore running process: [");
     char* ptr = process->rcb.stack_pages->head->data;
     for (u32 i = 4050; i < 4096; i++) {
         printf("%c", ptr[i]);
     }
+    printf("]\n\n");
 
     if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
         printf("start: sbi_hart_start failed\n");
     }
 
+    printf("\nPress any key to continue...\n\n");
     WFI();
 
-    printf("\nAfter:\n");
-    // char* ptr = process->rcb.stack_pages->head->data + PS_4K - 1;
+    printf("\nAfter running process: [");
     for (u32 i = 4050; i < 4096; i++) {
         printf("%c", ptr[i]);
     }
 
-    printf("\n");
+    printf("]\n\n");
 
     // free
 }

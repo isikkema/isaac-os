@@ -50,13 +50,6 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
             ppn = SATP_GET_PPN(page_zalloc(1));
             entry = (ppn << 10) | PB_VALID;
             tb->entries[vpn[i]] = entry;
-        } else if (entry & (PB_READ | PB_WRITE | PB_EXECUTE)) {
-            // Entry is already mapped
-            // Do we page fault or sfence?
-            // or just overwrite?
-
-            // unlock
-            // return false;
         }
 
         // Follow entry to next page table
@@ -64,11 +57,6 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
     }
 
     // tb is now a level 0 table
-
-    // Do we not have to page fault if we find ourselves trying to map over a leaf that's already valid?
-    // if (tb->entries[vpn[0]] & PB_VALID) {
-    //     return false;
-    // }
 
     // Set entry to paddr's ppn
     entry = (SATP_GET_PPN(paddr) << 10) | bits | PB_VALID;
@@ -138,7 +126,7 @@ uint64_t mmu_translate(PageTable* tb, uint64_t vaddr) {
 
             mutex_unlock(&mmu_lock);
             switch (i) {
-                case 2: return paddr_chunks[2] | (vaddr & 0x3FFFFFFF);
+                case 2: return paddr_chunks[2] | (vaddr & 0x3FFFFFFFUL);
                 case 1: return paddr_chunks[2] | paddr_chunks[1] | (vaddr & 0x1FFFFF);
                 case 0: return paddr_chunks[2] | paddr_chunks[1] | paddr_chunks[0] | (vaddr & 0xFFF);
             }

@@ -2,6 +2,7 @@
 #include <rs_int.h>
 #include <printf.h>
 #include <kmalloc.h>
+#include <page_alloc.h>
 #include <mmu.h>
 #include <plic.h>
 #include <lock.h>
@@ -55,6 +56,7 @@ void block_handle_irq() {
         } else if (desc_header->type == VIRTIO_BLK_T_IN) {  // If read request
             // Copy exact chunk needed from buffer to dst
             device_cfg = virtio_block_device->device_cfg;
+
             memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
 
@@ -63,7 +65,7 @@ void block_handle_irq() {
         switch (desc_header->type) {
             case VIRTIO_BLK_T_IN:
             case VIRTIO_BLK_T_OUT:
-                kfree(req_info->data);
+                page_dealloc(req_info->data);
                 kfree(req_info);
         }                
 
@@ -103,11 +105,11 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
 
     if (type == VIRTIO_BLK_T_IN) {
         low_sector = (u64) src / cfg->blk_size;
-        high_sector = (((u64) src + size + cfg->blk_size - 1) & ~(cfg->blk_size - 1)) / cfg->blk_size;
+        high_sector = ((u64) src + size + cfg->blk_size - 1) / cfg->blk_size;
         aligned_size = (high_sector - low_sector) * cfg->blk_size;
     } else if (type == VIRTIO_BLK_T_OUT) {
         low_sector = (u64) dst / cfg->blk_size;
-        high_sector = (((u64) dst + size + cfg->blk_size - 1) & ~(cfg->blk_size - 1)) / cfg->blk_size;
+        high_sector = ((u64) dst + size + cfg->blk_size - 1) / cfg->blk_size;
         aligned_size = (high_sector - low_sector) * cfg->blk_size;
     }
 
@@ -120,7 +122,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
         // Read data goes here first.
         // In the driver, the needed chunk gets copied from here to dst.
-        data = kmalloc(aligned_size);
+        data = page_alloc((aligned_size + PS_4K - 1) / PS_4K);
 
         // If write, first fill data array with data from file
         // so that chunks of the first and last written sector aren't zeroed out.
@@ -136,7 +138,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
             memcpy(data + (u64) dst % cfg->blk_size, src, size);
         }
 
-        desc_data = (u8*) mmu_translate(kernel_mmu_table, (u64) data);
+        desc_data = (u8*) data;
     }
 
     desc_status = kzalloc(sizeof(VirtioBlockDescStatus));
