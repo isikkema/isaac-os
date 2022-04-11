@@ -17,6 +17,7 @@
 #include <input.h>
 #include <process.h>
 #include <spawn.h>
+#include <schedule.h>
 
 
 char blocking_getchar() {
@@ -313,7 +314,15 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
+    schedule_init();
     
+    schedule_add(process_new());
+    // schedule_add(process_new());
+    // schedule_add(process_new());
+    // schedule_add(process_new());
+    // schedule_add(process_new());
+
+    schedule_loop();
 }
 
 void random(int argc, char** args) {
