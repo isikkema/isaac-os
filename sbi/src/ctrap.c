@@ -30,6 +30,11 @@ void c_trap(void) {
             case 3: // MSIP
                 hart_handle_msip(mhartid);
                 break;
+            
+            case 7:
+                printf("Got MTIP on hart %d!\n", mhartid);
+                clint_handle_mtip();
+                break;
 
             case 11:
                 plic_handle_irq(mhartid);

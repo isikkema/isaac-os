@@ -8,6 +8,7 @@
 #include <uart.h>
 #include <svccodes.h>
 #include <hart.h>
+#include <clint.h>
 
 
 void svccall_handle(int hart) {
@@ -43,9 +44,27 @@ void svccall_handle(int hart) {
         case SBI_WHOAMI:
             mscratch[XREG_A0] = hart;
             break;
+        
+        case SBI_GET_TIME:
+            mscratch[XREG_A0] = clint_get_time();
+            break;
+        
+        case SBI_SET_TIMER: ;
+            int             hart_to_set = mscratch[XREG_A0];
+            unsigned long   timer_val = mscratch[XREG_A1];
+            clint_set_timer(hart_to_set, timer_val);
+            break;
+        
+        case SBI_ADD_TIMER: ;
+            int             hart_to_add = mscratch[XREG_A0];
+            unsigned long   timer_duration = mscratch[XREG_A1];
+            unsigned long   time;
+            time = clint_get_time();
+            clint_set_timer(hart_to_add, time + timer_duration);
+            break;
 
         case SBI_POWEROFF:
-            *((unsigned short*) 0x100000) = 0x5555;
+            *((volatile unsigned short*) 0x100000) = 0x5555;
             break;
 
         default:

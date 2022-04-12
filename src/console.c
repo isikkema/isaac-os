@@ -237,10 +237,10 @@ void start_hart(int argc, char** args) {
     }
 
     hart = atoi(args[1]);
-    if (hart == 0) {
-        printf("start: invalid argument: %s\n", args[1]);
-        return;
-    }
+    // if (hart == 0) {
+    //     printf("start: invalid argument: %s\n", args[1]);
+    //     return;
+    // }
 
     process = process_new();
     
@@ -262,6 +262,8 @@ void start_hart(int argc, char** args) {
         printf("%c", ptr[i]);
     }
     printf("]\n\n");
+
+    sbi_add_timer(hart, 10000000UL * 5);
 
     if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
         printf("start: sbi_hart_start failed\n");

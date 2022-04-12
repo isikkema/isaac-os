@@ -62,6 +62,22 @@ int sbi_whoami(void) {
     return hart;
 }
 
+unsigned long sbi_get_time(void) {
+    unsigned long time;
+
+    asm volatile ("mv a7, %1\necall\nmv %0, a0" : "=r"(time) : "r"(SBI_GET_TIME) : "a7", "a0");
+
+    return time;
+}
+
+void sbi_set_timer(int hart, unsigned long val) {
+    asm volatile ("mv a7, %0\nmv a0, %1\nmv a1, %2\necall" :: "r"(SBI_SET_TIMER), "r"(hart), "r"(val) : "a7", "a0", "a1");
+}
+
+void sbi_add_timer(int hart, unsigned long duration) {
+    asm volatile ("mv a7, %0\nmv a0, %1\nmv a1, %2\necall" :: "r"(SBI_ADD_TIMER), "r"(hart), "r"(duration) : "a7", "a0", "a1");
+}
+
 void sbi_poweroff(void) {
     asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
 }
