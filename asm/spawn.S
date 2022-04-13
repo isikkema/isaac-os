@@ -45,15 +45,17 @@ process_spawn:
     # We store the paddr of the frame in frame->sscratch
     # We need to load that, swap to kernel pt,
     # and then use the new sscratch to do future frame stuff
-    ld      t1, 536(t6)
+    # ld      t1, 536(t6)
 
-    ld      t0, 552(t6)
-    csrw    stvec, t0
+    # ld      t0, 552(t6)
+    # csrw    stvec, t0
 
-    ld      t0, 544(t6)
-    csrw    sscratch, t0
+    # ld      t0, 544(t6)
+    # csrw    sscratch, t0
 
-    csrw    satp, t1
+    # csrw    satp, t1
+
+    # sd      t6, 544(t0)
 
     sret
 
@@ -86,35 +88,47 @@ process_trap_vector:
 
     # Trap values
     ld      t0, 560(t5)
+
+    ld      t6, 544(t5)
+
+    sd      t5, 544(t5)
+
     csrw    satp, t0
     
-    ld      sp, 568(t5)
+    ld      sp, 568(t6)
+
+    csrw    sscratch, t6
 
     # Go into C
     call c_trap
 
-    # This is for when we have good code for processes.
-    # For now, we just wanna stop the hart by any means necessary.
+    csrr    t5, sscratch
+    
+    # Process values
+    ld      t0, 536(t5)
+    
+    ld      t6, 544(t5)
 
-    # csrr    t6, sscratch
+    sd      t5, 544(t5)
 
-    # # Load frame back
-    # .set i, 1
-    # .rept 31
-    #     loadfp %i
-    #     .set i, i + 1
-    # .endr
+    csrw    satp, t0
+    
+    csrw    sscratch, t6
 
-    # .set i, 1
-    # .rept 31
-    #     loadgp %i
-    #     .set i, i + 1
-    # .endr
+    # Load frame back
+    .set i, 1
+    .rept 31
+        loadfp %i
+        .set i, i + 1
+    .endr
 
-    # sret
+    .set i, 1
+    .rept 31
+        loadgp %i
+        .set i, i + 1
+    .endr
 
-    call sbi_hart_stop
-    tail park
+    sret
 
 .align 4
 process_trap_vector_end:

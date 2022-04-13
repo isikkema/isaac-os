@@ -36,6 +36,7 @@ typedef struct ResourceControlBlock {
 typedef struct ProcessStats {
     uint64_t vruntime;
     uint64_t switches;
+    uint64_t starttime;
 } ProcessStats;
 
 typedef enum ProcState {

@@ -10,4 +10,4 @@ void schedule_add(Process* process);
 bool schedule_remove(Process* process);
 Process* schedule_next();
 
-void schedule_loop();
+void schedule_schedule(int hart);

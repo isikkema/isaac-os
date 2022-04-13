@@ -7,7 +7,7 @@
 #define CLINT_TIME_PTR          ((volatile unsigned long*) (CLINT_BASE + 0xbff8))
 #define CLINT_TIMECMP_BASE_PTR  ((volatile unsigned long*) (CLINT_BASE + 0x4000))
 
-#define CLINT_TIME_INFINITE 0x7fffffffffffffffUL
+#define CLINT_TIME_INFINITE 0x000fffffffffffffUL
 
 
 void clint_set_msip(int hart);

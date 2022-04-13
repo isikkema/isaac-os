@@ -100,33 +100,17 @@ void* page_alloc(int num_pages) {
 
     mutex_sbi_lock(&page_alloc_lock);
 
-    for (i = 0; i < FREE_BLOCKS_SIZE; i++) {
-        if (page_alloc_data.free_blocks[i].num_pages >= num_pages) {
-            pageid = page_alloc_data.free_blocks[i].pageid;
-            found_flag = 1;
-
-            page_alloc_data.free_blocks[i] = (FreeBlock) {
-                page_alloc_data.free_blocks[i].pageid + num_pages,
-                page_alloc_data.free_blocks[i].num_pages - num_pages
-            };
-
-            break;
+    for (i = 0; i < page_alloc_data.num_pages; i++) {
+        if (!IS_TAKEN(i)) {
+            num_found++;
+        } else {
+            num_found = 0;
+            pageid = i + 1;
         }
-    }
 
-    if (!found_flag) {
-        for (i = 0; i < page_alloc_data.num_pages; i++) {
-            if (!IS_TAKEN(i)) {
-                num_found++;
-            } else {
-                num_found = 0;
-                pageid = i + 1;
-            }
-
-            if (num_found == num_pages) {
-                found_flag = 1;
-                break;
-            }
+        if (num_found == num_pages) {
+            found_flag = 1;
+            break;
         }
     }
 
@@ -166,13 +150,6 @@ void page_dealloc(void* pages) {
     num_pages = get_num_pages(pageid);
     for (i = pageid; i < pageid + num_pages; i++) {
         UNSET_TAKEN(i);
-    }
-
-    for (i = 0; i < FREE_BLOCKS_SIZE; i++) {
-        if (page_alloc_data.free_blocks[i].num_pages == 0) {
-            page_alloc_data.free_blocks[i] = (FreeBlock) {pageid, num_pages};
-            break;
-        }
     }
 
     mutex_unlock(&page_alloc_lock);

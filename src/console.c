@@ -316,15 +316,43 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
+    Process* process;
+    int hart;
+    
+    if (argc < 2) {
+        printf("start: not enough arguments\n");
+        return;
+    }
+
+    hart = atoi(args[1]);
+    if (hart == 0) {
+        printf("start: invalid argument: %s\n", args[1]);
+        return;
+    }
+
     schedule_init();
     
-    schedule_add(process_new());
+    process = process_new();
+    
+    if (!elf_load((void*) 0x0, process)) {
+        printf("test: elf_load failed\n");
+        process_free(process);
+        return;
+    }
+
+    if (!process_prepare(process)) {
+        printf("test: process_prepare failed\n");
+        process_free(process);
+        return;
+    }
+
+    schedule_add(process);
     // schedule_add(process_new());
     // schedule_add(process_new());
     // schedule_add(process_new());
     // schedule_add(process_new());
 
-    schedule_loop();
+    schedule_schedule(hart);
 }
 
 void random(int argc, char** args) {

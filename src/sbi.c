@@ -78,6 +78,10 @@ void sbi_add_timer(int hart, unsigned long duration) {
     asm volatile ("mv a7, %0\nmv a0, %1\nmv a1, %2\necall" :: "r"(SBI_ADD_TIMER), "r"(hart), "r"(duration) : "a7", "a0", "a1");
 }
 
+void sbi_ack_timer(void) {
+    asm volatile ("mv a7, %0\necall" :: "r"(SBI_ACK_TIMER) : "a7");
+}
+
 void sbi_poweroff(void) {
     asm volatile ("mv a7, %0\necall" :: "r"(SBI_POWEROFF) : "a7");
 }

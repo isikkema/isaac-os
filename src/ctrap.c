@@ -3,6 +3,8 @@
 #include <printf.h>
 #include <plic.h>
 #include <sbi.h>
+#include <schedule.h>
+#include <start.h>
 
 
 void c_trap(void) {
@@ -25,21 +27,31 @@ void c_trap(void) {
 
     if (is_async) {
         switch (scause) {
+            case 5:
+                // STIP
+                sbi_ack_timer();
+                schedule_schedule(hart);
+                break;
+                
             case 9:
                 plic_handle_irq(hart);
                 break;
             
             default:
                 printf("error: c_trap: unhandled asynchronous interrupt: %ld\n", scause);
+                // if (hart == 0) {
+                    printf("waiting for interrupt...\n");
+                    WFI_LOOP();
+                // }
         }
     } else {
         switch (scause) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
-                if (hart == 0) {
+                // if (hart == 0) {
                     printf("waiting for interrupt...\n");
-                    WFI();
-                }
+                    WFI_LOOP();
+                // }
         }
     }
 }

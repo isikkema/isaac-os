@@ -18,6 +18,8 @@ HartStatus get_hart_status(int hart) {
 }
 
 bool hart_start(int hart, uint64_t target, uint64_t scratch) {
+    int mhartid;
+
     if (!IS_VALID_HART(hart)) {
         return false;
     }
@@ -26,7 +28,9 @@ bool hart_start(int hart, uint64_t target, uint64_t scratch) {
         return false;
     }
     
-    if (sbi_hart_data[hart].status != HS_STOPPED) {
+    CSR_READ(mhartid, "mhartid");
+
+    if (hart != mhartid && sbi_hart_data[hart].status != HS_STOPPED) {
         mutex_unlock(&sbi_hart_data[hart].lock);
         return false;
     }
@@ -97,6 +101,7 @@ void hart_handle_msip(int hart) {
     CSR_WRITE("sscratch", sbi_hart_data[hart].scratch);
 
     sbi_hart_data[hart].status = HS_STARTED;
+    printf("hart status: %d\n", sbi_hart_data[hart].status);
 
     mutex_unlock(&sbi_hart_data[hart].lock);
     MRET();

@@ -10,5 +10,6 @@
 #define SBI_GET_TIME        (24)
 #define SBI_SET_TIMER       (25)
 #define SBI_ADD_TIMER       (26)
+#define SBI_ACK_TIMER       (27)
 
 #define SBI_POWEROFF (30)

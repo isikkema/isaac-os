@@ -94,7 +94,7 @@ void process_free(Process* process) {
 
 bool process_prepare(Process* process) {
     void* stack;
-
+    
     if (!mmu_map_many(process->rcb.ptable, (u64) process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) process_spawn_addr), (u64) process_spawn_size, PB_EXECUTE)) {
         printf("process_init: process spawn mmu_map_many failed\n");
         return false;
@@ -102,6 +102,11 @@ bool process_prepare(Process* process) {
 
     if (!mmu_map_many(process->rcb.ptable, process_trap_vector_addr, mmu_translate(kernel_mmu_table, (u64) process_trap_vector_addr), (u64) process_trap_vector_size, PB_EXECUTE)) {
         printf("process_init: process trap vector mmu_map_many failed\n");
+        return false;
+    }
+
+    if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
+        printf("process_init: process park mmu_map failed\n");
         return false;
     }
 
@@ -181,14 +186,12 @@ bool elf_load(void* elf_addr, Process* process) {
         }
 
         // Get min and max addresses of load segments
-        if (program_header.p_type == PT_LOAD && program_header.p_memsz > 0) {
-            if (program_header.p_vaddr < load_addr_start) {
-                load_addr_start = program_header.p_vaddr;
-            }
+        if (program_header.p_vaddr < load_addr_start) {
+            load_addr_start = program_header.p_vaddr;
+        }
 
-            if (program_header.p_vaddr + program_header.p_memsz > load_addr_end) {
-                load_addr_end = program_header.p_vaddr + program_header.p_memsz;
-            }
+        if (program_header.p_vaddr + program_header.p_memsz > load_addr_end) {
+            load_addr_end = program_header.p_vaddr + program_header.p_memsz;
         }
     }
 
@@ -201,6 +204,8 @@ bool elf_load(void* elf_addr, Process* process) {
     num_load_pages = (load_addr_end - load_addr_start + PS_4K - 1) / PS_4K;
     image = page_zalloc(num_load_pages);
 
+    // printf("image: 0x%08lx\n", (u64) image);
+
     for (i = 0; i < elf_header.e_phnum; i++) {
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
             printf("elf_load: program_header %d block_read failed\n", i);
@@ -212,6 +217,12 @@ bool elf_load(void* elf_addr, Process* process) {
             continue;
         }
 
+        // printf("reading dst: 0x%08lx, src: 0x%08lx, size: %d (0x%x)\n",
+        //     (u64) image + (program_header.p_vaddr - load_addr_start),
+        //     (u64) elf_addr + program_header.p_offset,
+        //     program_header.p_memsz,
+        //     program_header.p_memsz
+        // );
         if (!block_read_poll(
             image + (program_header.p_vaddr - load_addr_start),
             elf_addr + program_header.p_offset,
@@ -221,6 +232,12 @@ bool elf_load(void* elf_addr, Process* process) {
             page_dealloc(image);
             return false;
         }
+
+        // for (u32 k = 0; k < 4096; k++) {
+        //     printf("%x ", ((char*) image)[k]);
+        // }
+
+        // printf("\n");
 
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
             flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | PB_USER;
@@ -237,12 +254,12 @@ bool elf_load(void* elf_addr, Process* process) {
                 flags |= PB_EXECUTE;
             }
 
-            printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx, flags: 0x%x\n",
-                process->rcb.ptable,
-                program_header.p_vaddr + j * PS_4K,
-                (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
-                flags
-            );
+            // printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx, flags: 0x%x\n",
+            //     process->rcb.ptable,
+            //     program_header.p_vaddr + j * PS_4K,
+            //     (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
+            //     flags
+            // );
 
             if (!mmu_map(
                 process->rcb.ptable,

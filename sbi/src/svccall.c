@@ -9,11 +9,14 @@
 #include <svccodes.h>
 #include <hart.h>
 #include <clint.h>
+#include <printf.h>
 
 
 void svccall_handle(int hart) {
     long *mscratch;
-    
+    unsigned long sip;
+
+
     CSR_READ(mscratch, "mscratch");
     switch (mscratch[XREG_A7]) {
         case SBI_PUTCHAR: ;
@@ -61,6 +64,12 @@ void svccall_handle(int hart) {
             unsigned long   time;
             time = clint_get_time();
             clint_set_timer(hart_to_add, time + timer_duration);
+            break;
+
+        case SBI_ACK_TIMER:
+            CSR_READ(sip, "mip");
+            clint_set_timer(hart, CLINT_TIME_INFINITE);
+            CSR_WRITE("mip", sip & ~SIP_STIP);
             break;
 
         case SBI_POWEROFF:

@@ -57,6 +57,10 @@ void block_handle_irq() {
             // Copy exact chunk needed from buffer to dst
             device_cfg = virtio_block_device->device_cfg;
 
+            // printf("memcpy: dst: 0x%08lx, src: 0x%08lx, size: %d (0x%x)\n",
+            //     (u64) req_info->dst, (u64) req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size
+            // );
+
             memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
 

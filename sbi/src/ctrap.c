@@ -32,7 +32,6 @@ void c_trap(void) {
                 break;
             
             case 7:
-                printf("Got MTIP on hart %d!\n", mhartid);
                 clint_handle_mtip();
                 break;
 
