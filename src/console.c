@@ -346,11 +346,7 @@ void test(int argc, char** args) {
         return;
     }
 
-    schedule_add(process);
-    // schedule_add(process_new());
-    // schedule_add(process_new());
-    // schedule_add(process_new());
-    // schedule_add(process_new());
+    // schedule_add(process);
 
     schedule_schedule(hart);
 }

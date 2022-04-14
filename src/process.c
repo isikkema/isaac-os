@@ -105,10 +105,10 @@ bool process_prepare(Process* process) {
         return false;
     }
 
-    if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
-        printf("process_init: process park mmu_map failed\n");
-        return false;
-    }
+    // if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
+    //     printf("process_init: process park mmu_map failed\n");
+    //     return false;
+    // }
 
     if (!mmu_map_many(process->rcb.ptable, (u64) &process->frame, mmu_translate(kernel_mmu_table, (u64) &process->frame), sizeof(ProcFrame), PB_READ | PB_WRITE)) {
         printf("process_init: process frame mmu_map_many failed\n");
@@ -127,7 +127,7 @@ bool process_prepare(Process* process) {
     process->frame.gpregs[XREG_SP] = 0x1beef0000UL + PS_4K;
     process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_USER;
     process->frame.sie = SIE_SEIE | SIE_SSIE | SIE_STIE;
-    process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(process->rcb.ptable);
+    process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(mmu_translate(kernel_mmu_table, (u64) process->rcb.ptable));
     process->frame.sscratch = (u64) &process->frame;
     
     process->frame.stvec = process_trap_vector_addr;

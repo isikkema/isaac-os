@@ -19,7 +19,7 @@
 .section .text
 process_spawn:
     # We're dealing with kernel mmu here
-
+    
     csrrw   t6, sscratch, t6
 
     # t6: kernel frame
@@ -79,7 +79,7 @@ process_spawn:
         loadgp %i
         .set i, i + 1
     .endr
-
+    
     sret
 
 .align 4

@@ -101,7 +101,6 @@ void hart_handle_msip(int hart) {
     CSR_WRITE("sscratch", sbi_hart_data[hart].scratch);
 
     sbi_hart_data[hart].status = HS_STARTED;
-    printf("hart status: %d\n", sbi_hart_data[hart].status);
 
     mutex_unlock(&sbi_hart_data[hart].lock);
     MRET();

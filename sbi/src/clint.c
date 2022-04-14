@@ -8,7 +8,6 @@ void clint_set_msip(int hart) {
         return;
     }
     
-    printf("setting msip...\n");
     CLINT_BASE_PTR[hart] = 1;
 }
 
@@ -17,7 +16,6 @@ void clint_unset_msip(int hart) {
         return;
     }
     
-    printf("unsetting msip...\n");
     CLINT_BASE_PTR[hart] = 0;
 }
 

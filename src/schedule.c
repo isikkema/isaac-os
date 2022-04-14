@@ -16,7 +16,17 @@ Process* idle;
 
 bool schedule_init() {
     schedule_processes = list_new();
+    
     idle = process_new();
+    if (!process_prepare(idle)) {
+        return false;
+    }
+    
+    idle->quantum = 50;
+    idle->frame.sepc = 0x10000UL + ((u64) park & 0x0fff);
+    if (!mmu_map(idle->rcb.ptable, idle->frame.sepc, (u64) park, PB_USER | PB_EXECUTE)) {
+        return false;
+    }
 
     return true;
 }
@@ -68,7 +78,9 @@ bool schedule_run(int hart, Process* process) {
 
     current_processes[hart] = process;
     process->stats.starttime = sbi_get_time();
-    sbi_add_timer(hart, (u64) process->quantum * 1000 * 200);
+    // sbi_add_timer(hart, (u64) process->quantum * 1000 * 200);
+
+    printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx\n", (u64) process->rcb.ptable, process->frame.sepc, mmu_translate(process->rcb.ptable, process->frame.sepc));
 
     return sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame));
 }
