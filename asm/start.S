@@ -27,6 +27,6 @@ _start:
 .global park
 .align 4
 park:
-    wfi         # Wait-For-Interrupt (Wii)
+    # wfi         # Wait-For-Interrupt (Wii)
     j    park
 

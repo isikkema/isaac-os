@@ -78,9 +78,9 @@ bool schedule_run(int hart, Process* process) {
 
     current_processes[hart] = process;
     process->stats.starttime = sbi_get_time();
-    // sbi_add_timer(hart, (u64) process->quantum * 1000 * 200);
+    sbi_add_timer(hart, (u64) process->quantum * 1000 * 200);
 
-    printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx\n", (u64) process->rcb.ptable, process->frame.sepc, mmu_translate(process->rcb.ptable, process->frame.sepc));
+    // printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx\n", (u64) process->rcb.ptable, process->frame.sepc, mmu_translate(process->rcb.ptable, process->frame.sepc));
 
     return sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame));
 }

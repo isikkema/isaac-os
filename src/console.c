@@ -346,6 +346,7 @@ void test(int argc, char** args) {
         return;
     }
 
+    // process->pid = 1;
     // schedule_add(process);
 
     schedule_schedule(hart);
