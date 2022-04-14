@@ -95,7 +95,7 @@ void hart_handle_msip(int hart) {
 
     CSR_WRITE("mepc", sbi_hart_data[hart].target_address);
     CSR_WRITE("mstatus", MSTATUS_MPP_SUPERVISOR | MSTATUS_MPIE | MSTATUS_FS_INITIAL);
-    CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE);
+    CSR_WRITE("mie", MIE_SSIE | MIE_STIE | MIE_MTIE | MIE_MSIE);
     CSR_WRITE("mideleg", SIP_SEIP | SIP_SSIP | SIP_STIP);
     CSR_WRITE("medeleg", MEDELEG_ALL);
     CSR_WRITE("sscratch", sbi_hart_data[hart].scratch);

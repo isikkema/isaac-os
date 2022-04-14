@@ -18,7 +18,11 @@
 
 .section .text
 process_spawn:
+    # We're dealing with kernel mmu here
+
     csrrw   t6, sscratch, t6
+
+    # t6: kernel frame
 
     # gpregs      0
     # fpregs      256
@@ -31,8 +35,6 @@ process_spawn:
     # trap_satp   560
     # trap_stack  568
 
-    ld      sp, 0+8*2(t6)
-
     ld      t0, 512(t6)
     csrw    sepc, t0
 
@@ -42,20 +44,41 @@ process_spawn:
     ld      t0, 528(t6)
     csrw    sie, t0
 
-    # We store the paddr of the frame in frame->sscratch
-    # We need to load that, swap to kernel pt,
+    # We store the vaddr of the frame in frame->sscratch
+    # We need to load that, swap to process pt,
     # and then use the new sscratch to do future frame stuff
-    # ld      t1, 536(t6)
 
-    # ld      t0, 552(t6)
-    # csrw    stvec, t0
+    # process satp
+    ld      t1, 536(t6)
 
-    # ld      t0, 544(t6)
-    # csrw    sscratch, t0
+    ld      t0, 552(t6)
+    csrw    stvec, t0
 
-    # csrw    satp, t1
+    # process frame
+    ld      t0, 544(t6)
+    csrw    sscratch, t0
 
-    # sd      t6, 544(t0)
+    # kernel frame
+    sd      t6, 544(t6)
+
+    # Now deal with process mmu
+    csrw    satp, t1
+
+    # process frame
+    mv      t6, t0
+
+    # Load frame
+    .set i, 1
+    .rept 31
+        loadfp %i
+        .set i, i + 1
+    .endr
+
+    .set i, 1
+    .rept 31
+        loadgp %i
+        .set i, i + 1
+    .endr
 
     sret
 
@@ -65,6 +88,7 @@ process_spawn_end:
 
 .align 4
 process_trap_vector:
+    # Dealing with process mmu
     csrrw   t6, sscratch, t6
 
     # Save 30 gp regs into frame
@@ -86,17 +110,21 @@ process_trap_vector:
     csrrw   t6, sscratch, t6
     sd      t6, 8*31(t5)
 
-    # Trap values
+    # trap satp
     ld      t0, 560(t5)
 
+    # sscratch (kernel frame addr)
     ld      t6, 544(t5)
 
+    # sp
+    ld      sp, 568(t5)
+
+    # process frame addr
     sd      t5, 544(t5)
 
+    # Now dealing with kernel mmu
     csrw    satp, t0
     
-    ld      sp, 568(t6)
-
     csrw    sscratch, t6
 
     # Go into C
@@ -104,13 +132,16 @@ process_trap_vector:
 
     csrr    t5, sscratch
     
-    # Process values
+    # process satp
     ld      t0, 536(t5)
     
+    # process frame addr
     ld      t6, 544(t5)
 
+    # kernel frame addr
     sd      t5, 544(t5)
 
+    # Now dealing with process mmu
     csrw    satp, t0
     
     csrw    sscratch, t6

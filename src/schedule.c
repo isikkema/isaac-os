@@ -87,7 +87,6 @@ void schedule_park(int hart) {
     printf("schedule_park: pid %2d ran for %3dms\n", process->pid, (time - process->stats.starttime) / 10000);
 
     CSR_READ(process->frame.sepc, "sepc");
-    CSR_WRITE("sepc", park);                // Safe place to sret to from trap_vector so the MSIP can interrupt us
 
     current_processes[hart] = NULL;
     schedule_add(process);
