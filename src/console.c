@@ -332,22 +332,24 @@ void test(int argc, char** args) {
 
     schedule_init();
     
-    process = process_new();
-    
-    if (!elf_load((void*) 0x0, process)) {
-        printf("test: elf_load failed\n");
-        process_free(process);
-        return;
-    }
+    for (u32 i = 0; i < 10; i++) {
+        process = process_new();
+        
+        if (!elf_load((void*) 0x0, process)) {
+            printf("test: elf_load failed\n");
+            process_free(process);
+            return;
+        }
 
-    if (!process_prepare(process)) {
-        printf("test: process_prepare failed\n");
-        process_free(process);
-        return;
-    }
+        if (!process_prepare(process)) {
+            printf("test: process_prepare failed\n");
+            process_free(process);
+            return;
+        }
 
-    // process->pid = 1;
-    // schedule_add(process);
+        // process->pid = 1;
+        schedule_add(process);
+    }
 
     schedule_schedule(hart);
 }
