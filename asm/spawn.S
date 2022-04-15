@@ -79,7 +79,7 @@ process_spawn:
         loadgp %i
         .set i, i + 1
     .endr
-    
+
     sret
 
 .align 4
@@ -88,6 +88,10 @@ process_spawn_end:
 
 .align 4
 process_trap_vector:
+    wfi
+    wfi
+    wfi
+
     # Dealing with process mmu
     csrrw   t6, sscratch, t6
 
@@ -127,6 +131,10 @@ process_trap_vector:
     
     csrw    sscratch, t6
 
+    wfi
+    wfi
+    wfi
+
     # Go into C
     call c_trap
 
@@ -158,6 +166,10 @@ process_trap_vector:
         loadgp %i
         .set i, i + 1
     .endr
+
+    wfi
+    wfi
+    wfi
 
     sret
 

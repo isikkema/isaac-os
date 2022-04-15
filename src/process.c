@@ -132,7 +132,11 @@ bool process_prepare(Process* process) {
     
     process->frame.stvec = process_trap_vector_addr;
     process->frame.trap_satp = SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | SATP_GET_PPN(kernel_mmu_table);
-    process->frame.trap_stack = (u64) page_zalloc(1) + PS_4K;   // This is wasteful
+    process->frame.trap_stack = (u64) page_zalloc(4) + PS_4K * 4;   // This is wasteful
+
+    SFENCE_ASID(process->pid);
+
+    printf("pid: %d, trap sp: 0x%08lx\n", process->pid, process->frame.trap_stack);
 
     return true;
 }

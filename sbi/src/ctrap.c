@@ -25,6 +25,10 @@ void c_trap(void) {
     is_async = MCAUSE_IS_ASYNC(mcause);
     mcause = MCAUSE_NUM(mcause);
 
+    if (mhartid == 7 && is_async) {
+        printf("sbi c_trap: hart %d was here. async: %d, cause: %d\n", mhartid, is_async, mcause);
+    }
+
     if (is_async) {
         switch (mcause) {
             case 3: // MSIP
@@ -40,7 +44,7 @@ void c_trap(void) {
                 break;
             
             default:
-                printf("error: c_trap: unhandled asynchronous interrupt: %ld\n", mcause);
+                printf("error: sbi c_trap: unhandled asynchronous interrupt: %ld\n", mcause);
         }
     } else {
         switch (mcause) {
@@ -50,7 +54,7 @@ void c_trap(void) {
                 break;
             
             default:
-                printf("error: c_trap: unhandled synchronous interrupt: %ld\n", mcause);
+                printf("error: sbi c_trap: unhandled synchronous interrupt: %ld\n", mcause);
         }
     }
 }

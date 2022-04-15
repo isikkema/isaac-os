@@ -8,6 +8,6 @@
 bool schedule_init();
 void schedule_add(Process* process);
 bool schedule_remove(Process* process);
-Process* schedule_next();
+Process* schedule_pop();
 
 void schedule_schedule(int hart);

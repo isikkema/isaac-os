@@ -3,3 +3,4 @@ hdd.dsk
 *.o
 *.d
 .vscode
+*.tmp
