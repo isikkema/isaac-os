@@ -310,6 +310,8 @@ void cmd_print(int argc, char** args) {
         print_allocs(detailed);
     } else if (strcmp("mmu", args[1]) == 0) {
         mmu_translations_print(kernel_mmu_table, detailed);
+    } else if (strcmp("schedule", args[1]) == 0) {
+        schedule_print();
     } else {
         printf("print: invalid argument: %s\n", args[1]);
     }
@@ -320,7 +322,7 @@ void test(int argc, char** args) {
 
     schedule_init();
     
-    for (u32 i = 0; i < 8; i++) {
+    for (u32 i = 0; i < 32; i++) {
         process = process_new();
         
         if (!process_load_elf((void*) 0x0, process)) {

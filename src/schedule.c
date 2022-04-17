@@ -17,24 +17,6 @@ List* schedule_processes;
 Mutex schedule_lock;
 
 
-void schedule_print() {
-    u32 i;
-    ListNode* it;
-    Process* process;
-
-    mutex_sbi_lock(&schedule_lock);
-
-    i = 0;
-    for (it = schedule_processes->head; it != NULL; it = it->next) {
-        process = it->data;
-        printf("schedule_print: idx: %2d, pid: %2d, vruntime: %10d, state: %d\n", i, process->pid, process->stats.vruntime, process->state);
-
-        i++;
-    }
-
-    mutex_unlock(&schedule_lock);
-}
-
 void schedule_assert() {
     ListNode* it;
     ListNode* nit;
@@ -265,4 +247,31 @@ void schedule_schedule(int hart) {
 
         printf("schedule_schedule: schedule_run failed\n");
     }
+}
+
+
+void schedule_print() {
+    u32 i;
+    ListNode* it;
+    Process* process;
+
+    mutex_sbi_lock(&schedule_lock);
+
+    printf("schedule_print: currently running processes:\n");
+    for (i = 0; i < NUM_HARTS; i++) {
+        if (current_processes[i] != NULL) {
+            printf("schedule_print: hart: %d, pid: %2d\n", i, current_processes[i]->pid);
+        }
+    }
+
+    printf("\nschedule_print: all processes:\n");
+    i = 0;
+    for (it = schedule_processes->head; it != NULL; it = it->next) {
+        process = it->data;
+        printf("schedule_print: idx: %2d, pid: %2d, vruntime: %10d, state: %d, on_hart: %d\n", i, process->pid, process->stats.vruntime, process->state, process->on_hart);
+
+        i++;
+    }
+
+    mutex_unlock(&schedule_lock);
 }
