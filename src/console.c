@@ -319,6 +319,13 @@ void cmd_print(int argc, char** args) {
 
 void test(int argc, char** args) {
     Process* process;
+    bool all_flag;
+
+    all_flag = false;
+
+    if (argc == 2 && strcmp(args[1], "-a") == 0) {
+        all_flag = true;
+    }
 
     schedule_init();
     
@@ -347,6 +354,10 @@ void test(int argc, char** args) {
     schedule_schedule(5);
     schedule_schedule(6);
     schedule_schedule(7);
+
+    if (all_flag) {
+        schedule_schedule(0);
+    }
 }
 
 void random(int argc, char** args) {
