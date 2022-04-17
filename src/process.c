@@ -83,48 +83,75 @@ void process_free(Process* process) {
 
     mmu_free(process->rcb.ptable);
 
-    // todo: be better
-    if ((void*) process->frame.trap_stack != NULL) {
-        page_dealloc((void*) process->frame.trap_stack);
-    }
-
     kfree(process);
 }
 
 
 bool process_prepare(Process* process) {
     void* stack;
+    void* trap_stack;
     
-    if (!mmu_map_many(process->rcb.ptable, (u64) process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) process_spawn_addr), (u64) process_spawn_size, PB_EXECUTE)) {
-        printf("process_init: process spawn mmu_map_many failed\n");
+    // Map process spawn function
+    if (!mmu_map_many(
+        process->rcb.ptable,
+        process_spawn_addr,
+        mmu_translate(kernel_mmu_table, process_spawn_addr),
+        (u64) process_spawn_size,
+        PB_EXECUTE
+    )) {
+        printf("process_prepare: process spawn mmu_map_many failed\n");
         return false;
     }
 
-    if (!mmu_map_many(process->rcb.ptable, process_trap_vector_addr, mmu_translate(kernel_mmu_table, (u64) process_trap_vector_addr), (u64) process_trap_vector_size, PB_EXECUTE)) {
-        printf("process_init: process trap vector mmu_map_many failed\n");
+    // Map process trap vector
+    if (!mmu_map_many(
+        process->rcb.ptable,
+        process_trap_vector_addr,
+        mmu_translate(kernel_mmu_table, process_trap_vector_addr),
+        (u64) process_trap_vector_size,
+        PB_EXECUTE
+    )) {
+        printf("process_prepare: process trap vector mmu_map_many failed\n");
         return false;
     }
 
-    // if (!mmu_map(process->rcb.ptable, (u64) park, mmu_translate(kernel_mmu_table, (u64) park), PB_EXECUTE)) {
-    //     printf("process_init: process park mmu_map failed\n");
-    //     return false;
-    // }
-
-    if (!mmu_map_many(process->rcb.ptable, (u64) &process->frame, mmu_translate(kernel_mmu_table, (u64) &process->frame), sizeof(ProcFrame), PB_READ | PB_WRITE)) {
-        printf("process_init: process frame mmu_map_many failed\n");
+    // Map process frame
+    if (
+        !mmu_map_many(
+            process->rcb.ptable,
+            (u64) &process->frame,
+            mmu_translate(kernel_mmu_table, (u64) &process->frame),
+            sizeof(ProcFrame),
+            PB_READ | PB_WRITE
+        )
+    ) {
+        printf("process_prepare: process frame mmu_map_many failed\n");
         return false;
     }
 
-    stack = page_zalloc(1);
-    if (!mmu_map(process->rcb.ptable, 0x1beef0000UL, mmu_translate(kernel_mmu_table, (u64) stack), PB_USER | PB_READ | PB_WRITE)) {
-        printf("process_init: stack mmu_map failed\n");
+    stack = page_zalloc(PROCESS_DEFAULT_STACK_PAGES);
+
+    // Map process stack
+    if (
+        !mmu_map_many(
+            process->rcb.ptable,
+            PROCESS_DEFAULT_STACK_VADDR,
+            mmu_translate(kernel_mmu_table, (u64) stack),
+            PS_4K * PROCESS_DEFAULT_STACK_PAGES,
+            PB_USER | PB_READ | PB_WRITE
+        )
+    ) {
+        printf("process_prepare: stack mmu_map failed\n");
         page_dealloc(stack);
         return false;
     }
 
-    list_insert(process->rcb.stack_pages, stack);
+    trap_stack = page_zalloc(PROCESS_DEFAULT_TRAP_STACK_PAGES);
 
-    process->frame.gpregs[XREG_SP] = 0x1beef0000UL + PS_4K;
+    list_insert(process->rcb.stack_pages, stack);
+    list_insert(process->rcb.stack_pages, trap_stack);
+
+    process->frame.gpregs[XREG_SP] = PROCESS_DEFAULT_STACK_VADDR + PS_4K * PROCESS_DEFAULT_STACK_PAGES;
     process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_USER;
     process->frame.sie = SIE_SEIE | SIE_SSIE | SIE_STIE;
     process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(mmu_translate(kernel_mmu_table, (u64) process->rcb.ptable));
@@ -132,17 +159,15 @@ bool process_prepare(Process* process) {
     
     process->frame.stvec = process_trap_vector_addr;
     process->frame.trap_satp = SATP_MODE_SV39 | SATP_SET_ASID(KERNEL_ASID) | SATP_GET_PPN(kernel_mmu_table);
-    process->frame.trap_stack = (u64) page_zalloc(4) + PS_4K * 4;   // This is wasteful
+    process->frame.trap_stack = (u64) trap_stack + PS_4K * PROCESS_DEFAULT_TRAP_STACK_PAGES;
 
     SFENCE_ASID(process->pid);
-
-    printf("pid: %d, trap sp: 0x%08lx\n", process->pid, process->frame.trap_stack);
 
     return true;
 }
 
 
-bool elf_load(void* elf_addr, Process* process) {
+bool process_load_elf(void* elf_addr, Process* process) {
     Elf64_Ehdr elf_header;
     Elf64_Phdr program_header;
     void* image;
@@ -157,22 +182,22 @@ bool elf_load(void* elf_addr, Process* process) {
 
     // Read elf header
     if (!block_read_poll(&elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
-        printf("elf_load: elf_header block_read failed\n");
+        printf("process_load_elf: elf_header block_read failed\n");
         return false;
     }
 
     if (memcmp(elf_header.e_ident, ELFMAG, strlen(ELFMAG)) != 0) {
-        printf("elf_load: magic not 0x%s: %018lx\n", ELFMAG, *(u64*) elf_header.e_ident);
+        printf("process_load_elf: magic not 0x%s: %018lx\n", ELFMAG, *(u64*) elf_header.e_ident);
         return false;
     }
 
     if (elf_header.e_machine != EM_RISCV) {
-        printf("elf_load: machine not RISCV: %d\n", elf_header.e_machine);
+        printf("process_load_elf: machine not RISCV: %d\n", elf_header.e_machine);
         return false;
     }
 
     if (elf_header.e_type != ET_EXEC) {
-        printf("elf_load: type not executable: %d\n", elf_header.e_type);
+        printf("process_load_elf: type not executable: %d\n", elf_header.e_type);
         return false;
     }
 
@@ -181,7 +206,7 @@ bool elf_load(void* elf_addr, Process* process) {
     for (i = 0; i < elf_header.e_phnum; i++) {
         // Read program header
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("elf_load: program_header %d block_read failed\n", i);
+            printf("process_load_elf: program_header %d block_read failed\n", i);
             return false;
         }
 
@@ -201,18 +226,16 @@ bool elf_load(void* elf_addr, Process* process) {
 
     // If there are no PT_LOAD types
     if (load_addr_start > load_addr_end) {
-        printf("elf_load: could not find any PT_LOAD program types\n");
+        printf("process_load_elf: could not find any PT_LOAD program types\n");
         return false;
     }
 
     num_load_pages = (load_addr_end - load_addr_start + PS_4K - 1) / PS_4K;
     image = page_zalloc(num_load_pages);
 
-    // printf("image: 0x%08lx\n", (u64) image);
-
     for (i = 0; i < elf_header.e_phnum; i++) {
         if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("elf_load: program_header %d block_read failed\n", i);
+            printf("process_load_elf: program_header %d block_read failed\n", i);
             page_dealloc(image);
             return false;
         }
@@ -221,27 +244,15 @@ bool elf_load(void* elf_addr, Process* process) {
             continue;
         }
 
-        // printf("reading dst: 0x%08lx, src: 0x%08lx, size: %d (0x%x)\n",
-        //     (u64) image + (program_header.p_vaddr - load_addr_start),
-        //     (u64) elf_addr + program_header.p_offset,
-        //     program_header.p_memsz,
-        //     program_header.p_memsz
-        // );
         if (!block_read_poll(
             image + (program_header.p_vaddr - load_addr_start),
             elf_addr + program_header.p_offset,
             program_header.p_memsz
         )) {
-            printf("elf_load: segment block_read failed\n");
+            printf("process_load_elf: segment block_read failed\n");
             page_dealloc(image);
             return false;
         }
-
-        // for (u32 k = 0; k < 4096; k++) {
-        //     printf("%x ", ((char*) image)[k]);
-        // }
-
-        // printf("\n");
 
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
             flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | PB_USER;
@@ -258,20 +269,13 @@ bool elf_load(void* elf_addr, Process* process) {
                 flags |= PB_EXECUTE;
             }
 
-            // printf("pt: 0x%08lx, vaddr: 0x%08lx, paddr: 0x%08lx, flags: 0x%x\n",
-            //     process->rcb.ptable,
-            //     program_header.p_vaddr + j * PS_4K,
-            //     (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
-            //     flags
-            // );
-
             if (!mmu_map(
                 process->rcb.ptable,
                 program_header.p_vaddr + j * PS_4K,
                 (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
                 flags
             )) {
-                printf("elf_load: mmu_map failed\n");
+                printf("process_load_elf: mmu_map failed\n");
                 page_dealloc(image);
                 return false;
             }

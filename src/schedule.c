@@ -16,8 +16,6 @@ Process* idle_processes[NUM_HARTS];
 List* schedule_processes;
 Mutex schedule_lock;
 
-// Mutex speaking_stick;
-
 
 void schedule_print() {
     u32 i;
@@ -25,7 +23,6 @@ void schedule_print() {
     Process* process;
 
     mutex_sbi_lock(&schedule_lock);
-    // mutex_sbi_lock(&speaking_stick);
 
     i = 0;
     for (it = schedule_processes->head; it != NULL; it = it->next) {
@@ -35,7 +32,6 @@ void schedule_print() {
         i++;
     }
 
-    // mutex_unlock(&speaking_stick);
     mutex_unlock(&schedule_lock);
 }
 
@@ -44,10 +40,13 @@ void schedule_assert() {
     ListNode* nit;
     Process* p1;
     Process* p2;
+    u32 i;
+    bool error_flag;
 
     mutex_sbi_lock(&schedule_lock);
-    // mutex_sbi_lock(&speaking_stick);
 
+    error_flag = false;
+    i = 0;
     for (it = schedule_processes->head; it != NULL; it = it->next) {
         nit = it->next;
         if (nit == NULL) {
@@ -58,11 +57,18 @@ void schedule_assert() {
         p2 = nit->data;
         if (p2->stats.vruntime < p1->stats.vruntime) {
             printf("schedule_assert: error: schedule list out of order\n");
+            printf("%d: pid: %d -> %d: pid: %d (%d > %d)\n", i, p1->pid, i+1, p2->pid, p1->stats.vruntime, p2->stats.vruntime);
+            error_flag = true;
         }
+
+        i++;
     }
 
-    // mutex_unlock(&speaking_stick);
     mutex_unlock(&schedule_lock);
+    
+    if (error_flag) {
+        schedule_print();
+    }
 }
 
 
@@ -79,9 +85,10 @@ bool schedule_init() {
             return false;
         }
         
-        idle->quantum = 50; // More freqent context switches
-        idle->frame.sepc = 0x10000UL + ((u64) park & 0x0fff);
+        idle->quantum = PROCESS_IDLE_QUANTUM; // More freqent context switches
+        idle->frame.sepc = PROCESS_IDLE_ENTRY + ((u64) park & 0x0fff);
         if (!mmu_map(idle->rcb.ptable, idle->frame.sepc, (u64) park, PB_USER | PB_EXECUTE)) {
+            printf("schedule_init: idle park map failed\n");
             return false;
         }
 
@@ -96,18 +103,24 @@ void schedule_add(Process* new_process) {
     ListNode* nit;
     Process* p;
 
+    // Don't add if NULL or idle process
     if (new_process == NULL || new_process->pid <= NUM_HARTS) {
         return;
     }
 
     mutex_sbi_lock(&schedule_lock);
-
-    if (schedule_processes->head == NULL) {
+    
+    // Just insert at beginning if empty or smallest
+    if (
+        schedule_processes->head == NULL ||
+        ((Process*) schedule_processes->head->data)->stats.vruntime >= new_process->stats.vruntime
+    ) {
         list_insert(schedule_processes, new_process);
         mutex_unlock(&schedule_lock);
         return;
     }
 
+    // Find last node with smaller vruntime
     for (it = schedule_processes->head; it != NULL; it = it->next) {
         nit = it->next;
         if (nit == NULL) {
@@ -115,7 +128,7 @@ void schedule_add(Process* new_process) {
         }
         
         p = nit->data;
-        if (p->stats.vruntime > new_process->stats.vruntime) {
+        if (p->stats.vruntime >= new_process->stats.vruntime) {
             break;
         }
     }
@@ -128,7 +141,7 @@ void schedule_add(Process* new_process) {
 bool _schedule_remove(Process* process, bool lock) {
     bool rv;
 
-    if (process == NULL) {
+    if (process == NULL || process->pid <= NUM_HARTS) {
         return false;
     }
 
@@ -152,11 +165,14 @@ bool schedule_remove(Process* process) {
 Process* schedule_pop() {
     ListNode* it;
     Process* process;
+    u64 current_time;
 
     // Make sure we're doing what we should be doing
-    schedule_assert();
+    schedule_assert();  // todo: remove after debugging
 
     mutex_sbi_lock(&schedule_lock);
+
+    current_time = sbi_get_time();
 
     // Find the first process available for running
     process = NULL;
@@ -167,7 +183,7 @@ Process* schedule_pop() {
                 process->state == PS_RUNNING ||
                 process->state == PS_DEAD || (
                     process->state == PS_SLEEPING &&
-                    process->sleep_until <= sbi_get_time()
+                    process->sleep_until <= current_time
                 )
             )
         ) {
@@ -179,14 +195,6 @@ Process* schedule_pop() {
 
     // Remove process without locking (we already have the lock)
     _schedule_remove(process, false);
-
-    // mutex_sbi_lock(&speaking_stick);
-    // if (process != NULL) {
-    //     printf("schedule_pop: popped pid: %2d, vruntime: %10d, state: %d...\n", process->pid, process->stats.vruntime, process->state);
-    // } else {
-    //     printf("schedule_pop: running idle...\n");
-    // }
-    // mutex_unlock(&speaking_stick);
 
     mutex_unlock(&schedule_lock);
     return process;
@@ -200,34 +208,30 @@ bool schedule_run(int hart, Process* process) {
     schedule_add(process);
 
     process->stats.starttime = sbi_get_time();
-    sbi_add_timer(hart, (u64) process->quantum * 1000);
+    sbi_add_timer(hart, process->quantum * SCHEDULE_CTX_TIME);
 
     return sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame));
 }
 
 void schedule_park(int hart) {
     Process* process;
-    u64 time;
+    u64 current_time;
 
     process = current_processes[hart];
     if (process == NULL) {
         return;
     }
 
-    time = sbi_get_time();
+    current_time = sbi_get_time();
 
     // Remove process, update properties, add process
     schedule_remove(process);
 
-    process->stats.vruntime += time - process->stats.starttime;
+    process->stats.vruntime += current_time - process->stats.starttime;
     current_processes[hart] = NULL;
     process->on_hart = -1;
 
     schedule_add(process);
-
-    // mutex_sbi_lock(&speaking_stick);
-    // printf("schedule_park: pid %2d ran for %4dms\n", process->pid, (time - process->stats.starttime) / 10000);
-    // mutex_unlock(&speaking_stick);
 
     // Store sepc so we can jump back to where we left off
     CSR_READ(process->frame.sepc, "sepc");

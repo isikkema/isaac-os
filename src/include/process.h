@@ -8,7 +8,12 @@
 
 #define PROCESS_KERNEL_PID KERNEL_ASID
 
-#define PROCESS_DEFAULT_QUANTUM 100
+#define PROCESS_DEFAULT_STACK_VADDR         0x1beef0000UL
+#define PROCESS_DEFAULT_STACK_PAGES         4
+#define PROCESS_DEFAULT_TRAP_STACK_PAGES    1
+#define PROCESS_DEFAULT_QUANTUM             100
+#define PROCESS_IDLE_QUANTUM                50
+#define PROCESS_IDLE_ENTRY                  0x10000UL
 
 
 typedef struct ProcFrame {
@@ -66,4 +71,4 @@ Process* process_new();
 void process_free(Process* process);
 bool process_prepare(Process* process);
 
-bool elf_load(void* elf_addr, Process* process);
+bool process_load_elf(void* elf_addr, Process* process);

@@ -244,8 +244,8 @@ void start_hart(int argc, char** args) {
 
     process = process_new();
     
-    if (!elf_load((void*) 0x0, process)) {
-        printf("start: elf_load failed\n");
+    if (!process_load_elf((void*) 0x0, process)) {
+        printf("start: process_load_elf failed\n");
         process_free(process);
         return;
     }
@@ -323,8 +323,8 @@ void test(int argc, char** args) {
     for (u32 i = 0; i < 8; i++) {
         process = process_new();
         
-        if (!elf_load((void*) 0x0, process)) {
-            printf("test: elf_load failed\n");
+        if (!process_load_elf((void*) 0x0, process)) {
+            printf("test: process_load_elf failed\n");
             process_free(process);
             return;
         }
