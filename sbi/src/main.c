@@ -9,7 +9,7 @@
 #include <symbols.h>
 
 
-long int SBI_GPREGS[32][NUM_HARTS];
+unsigned long SBI_GPREGS[NUM_HARTS][32];
 
 Barrier barrier = {INT32_MAX};
 
@@ -88,14 +88,6 @@ int main(int hartid) {
     CSR_WRITE("mideleg", 0);
     CSR_WRITE("medeleg", 0);
     CSR_WRITE("mstatus", MSTATUS_FS_INITIAL | MSTATUS_MPP_MACHINE | MSTATUS_MPIE);
-
-    unsigned long sp;
-    asm volatile("mv %0, sp" : "=r"(sp));
-    printf("SBI: hart: %d, sp: 0x%08lx\n", hartid, sp);
-
-    // asm volatile("mv sp, %0" :: "r"(hartid ))
-    // asm volatile("la sp, _stack_end");
-    // asm volatile("sub sp, sp, %0" :: "r"(hartid * 4096));
 
     MRET();
 }

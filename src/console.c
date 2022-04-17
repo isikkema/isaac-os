@@ -317,18 +317,6 @@ void cmd_print(int argc, char** args) {
 
 void test(int argc, char** args) {
     Process* process;
-    int hart;
-    
-    // if (argc < 2) {
-    //     printf("start: not enough arguments\n");
-    //     return;
-    // }
-
-    // hart = atoi(args[1]);
-    // if (hart == 0) {
-    //     printf("start: invalid argument: %s\n", args[1]);
-    //     return;
-    // }
 
     schedule_init();
     
@@ -350,15 +338,11 @@ void test(int argc, char** args) {
         schedule_add(process);
     }
 
-    // schedule_schedule(1);
-    // schedule_schedule(2);
-    // schedule_schedule(3);
-    // schedule_schedule(4);
-    // schedule_schedule(5);
-
-    sbi_add_timer(6, 100UL * 1000 * 200);
-    sbi_add_timer(7, 100UL * 1000 * 200);
-
+    schedule_schedule(1);
+    schedule_schedule(2);
+    schedule_schedule(3);
+    schedule_schedule(4);
+    schedule_schedule(5);
     schedule_schedule(6);
     schedule_schedule(7);
 }

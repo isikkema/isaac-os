@@ -20,19 +20,10 @@ void c_trap(void) {
 
     is_async = MCAUSE_IS_ASYNC(scause);
     scause = MCAUSE_NUM(scause);
-
-    if (hart == 7) {
-        printf("os c_trap: hart %d was here. async: %d, cause: %d\n", hart, is_async, scause);
-    }
-
+   
     if (is_async) {
         switch (scause) {
             case 5:
-                if (hart == 7) {
-                    u64 sp;
-                    asm volatile("mv %0, sp" : "=r"(sp));
-                    printf("hart: %d, sp: 0x%08lx\n", hart, sp);
-                }
                 // STIP
                 sbi_ack_timer();
                 schedule_schedule(hart);
@@ -44,19 +35,25 @@ void c_trap(void) {
             
             default:
                 printf("error: c_trap: unhandled asynchronous interrupt: %ld\n", scause);
-                // if (hart == 0) {
+                if (hart == 0) {
                     printf("waiting for interrupt...\n");
                     WFI_LOOP();
-                // }
+                }
+
+                // TODO: remove/free process
+                schedule_schedule(hart);
         }
     } else {
         switch (scause) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
-                // if (hart == 0) {
+                if (hart == 0) {
                     printf("waiting for interrupt...\n");
                     WFI_LOOP();
-                // }
+                }
+
+                // TODO: remove/free process
+                schedule_schedule(hart);
         }
     }
 }

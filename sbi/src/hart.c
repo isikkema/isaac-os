@@ -35,8 +35,6 @@ bool hart_start(int hart, uint64_t target, uint64_t scratch) {
         return false;
     }
 
-    printf("hart_start: starting hart %d...\n", hart);
-
     sbi_hart_data[hart].status = HS_STARTING;
     sbi_hart_data[hart].target_address = target;
     sbi_hart_data[hart].scratch = scratch;
@@ -59,8 +57,6 @@ bool hart_stop(int hart) {
         mutex_unlock(&sbi_hart_data[hart].lock);
         return false;
     }
-
-    printf("hart_stop: stopping hart %d...\n", hart);
 
     sbi_hart_data[hart].status = HS_STOPPED;
     CSR_WRITE("mepc", park);

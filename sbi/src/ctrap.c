@@ -25,10 +25,6 @@ void c_trap(void) {
     is_async = MCAUSE_IS_ASYNC(mcause);
     mcause = MCAUSE_NUM(mcause);
 
-    if (mhartid == 7 && is_async) {
-        printf("sbi c_trap: hart %d was here. async: %d, cause: %d\n", mhartid, is_async, mcause);
-    }
-
     if (is_async) {
         switch (mcause) {
             case 3: // MSIP
