@@ -109,6 +109,10 @@ void schedule_add(Process* new_process) {
     }
 
     mutex_sbi_lock(&schedule_lock);
+
+    if (new_process->state == PS_DEAD) {
+        new_process->state = PS_RUNNING;
+    }
     
     // Just insert at beginning if empty or smallest
     if (
@@ -180,8 +184,7 @@ Process* schedule_pop() {
         process = it->data;
         if (
             process->on_hart == -1 && (
-                process->state == PS_RUNNING ||
-                process->state == PS_DEAD || (
+                process->state == PS_RUNNING || (
                     process->state == PS_SLEEPING &&
                     process->sleep_until <= current_time
                 )
