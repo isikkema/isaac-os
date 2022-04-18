@@ -319,17 +319,25 @@ void cmd_print(int argc, char** args) {
 
 void test(int argc, char** args) {
     Process* process;
+    u32 num_processes;
     bool all_flag;
 
     all_flag = false;
 
-    if (argc == 2 && strcmp(args[1], "-a") == 0) {
+    if (argc < 2) {
+        printf("usage: test NUM_PROCESSES [-a]\n");
+        return;
+    }
+
+    num_processes = atoi(args[1]);
+
+    if (argc >= 3 && strcmp(args[1], "-a") == 0) {
         all_flag = true;
     }
 
     schedule_init();
     
-    for (u32 i = 0; i < 32; i++) {
+    for (u32 i = 0; i < num_processes; i++) {
         process = process_new();
         
         if (!process_load_elf((void*) 0x0, process)) {
