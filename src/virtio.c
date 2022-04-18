@@ -48,8 +48,8 @@ bool virtio_device_driver(VirtioDevice* device, volatile EcamHeader* ecam) {
                     }
                     break;
                 
-                default:
-                    printf("virtio_device_driver: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
+                // default:
+                //     printf("virtio_device_driver: unsupported capability ID at 0x%08x: 0x%02x\n", (u64) cap, cap->id);
             }
 
             cap = (Capability*) ((u64) ecam + cap->next_offset);
@@ -94,7 +94,7 @@ bool virtio_device_setup_capability(VirtioDevice* device, volatile EcamHeader* e
             break;
 
         case VIRTIO_PCI_CAP_CFG_TYPE_COMMON_ALT:
-            printf("virtio_device_setup_capability: ignoring configuration type: %d\n", cap->cfg_type);
+            // printf("virtio_device_setup_capability: ignoring configuration type: %d\n", cap->cfg_type);
             break;
 
         default:

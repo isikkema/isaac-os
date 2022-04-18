@@ -89,6 +89,7 @@ bool rng_request(void* buffer, uint16_t size, bool poll) {
     virtio_rng_device->queue_driver->ring[virtio_rng_device->queue_driver->idx % queue_size] = at_idx;
 
     request_info = kzalloc(sizeof(VirtioRngRequestInfo));
+    request_info->poll = poll;
     request_info->complete = false;
     virtio_rng_device->request_info[at_idx] = (void*) request_info;
 

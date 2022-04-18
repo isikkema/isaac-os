@@ -146,7 +146,7 @@ u64 pci_setup_device(volatile EcamHeader* device_ecam, volatile EcamHeader* brid
     // Get and run driver
     driver = pci_find_driver(device_ecam->vendor_id, device_ecam->device_id);
     if (driver == NULL) {
-        printf("pci_setup_device: driver not found for vendor_id: 0x%04x and device_id: 0x%04x\n", device_ecam->vendor_id, device_ecam->device_id);
+        // printf("pci_setup_device: driver not found for vendor_id: 0x%04x and device_id: 0x%04x\n", device_ecam->vendor_id, device_ecam->device_id);
     } else if (!driver->driver_func(device_ecam)) {
         printf("pci_setup_device: driver failed for vendor_id: 0x%04x and device_id: 0x%04x\n", device_ecam->vendor_id, device_ecam->device_id);
         return -1UL;

@@ -381,13 +381,11 @@ void random(int argc, char** args) {
     size = atoi(args[1]);
     bytes = kzalloc(size);
 
-    if (!rng_fill(bytes, size)) {
+    if (!rng_fill_poll(bytes, size)) {
         printf("random: rng_fill failed\n");
         kfree(bytes);
         return;
     }
-
-    WFI();
 
     for (i = 0; i < size; i++) {
         if (i % 64 == 0 && i != 0) {
