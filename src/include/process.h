@@ -2,6 +2,7 @@
 
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <list.h>
 #include <mmu.h>
 
@@ -63,6 +64,7 @@ typedef struct Process {
     uint16_t quantum;
     uint16_t pid;
     int on_hart; // -1 if not running on a HART
+    bool supervisor_mode;
 } Process;
 
 

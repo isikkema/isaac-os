@@ -63,13 +63,14 @@ bool schedule_init() {
     // Initialize NUM_HARTS new idle processes
     for (i = 0; i < NUM_HARTS; i++) {
         idle = process_new();
+        idle->supervisor_mode = true;
         if (!process_prepare(idle)) {
             return false;
         }
         
         idle->quantum = PROCESS_IDLE_QUANTUM; // More freqent context switches
         idle->frame.sepc = PROCESS_IDLE_ENTRY + ((u64) park & 0x0fff);
-        if (!mmu_map(idle->rcb.ptable, idle->frame.sepc, (u64) park, PB_USER | PB_EXECUTE)) {
+        if (!mmu_map(idle->rcb.ptable, idle->frame.sepc, (u64) park, PB_EXECUTE)) {
             printf("schedule_init: idle park map failed\n");
             return false;
         }

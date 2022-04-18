@@ -90,6 +90,7 @@ void process_free(Process* process) {
 bool process_prepare(Process* process) {
     void* stack;
     void* trap_stack;
+    u64 user_flag;
     
     // Map process spawn function
     if (!mmu_map_many(
@@ -130,6 +131,10 @@ bool process_prepare(Process* process) {
     }
 
     stack = page_zalloc(PROCESS_DEFAULT_STACK_PAGES);
+    user_flag = 0;
+    if (!process->supervisor_mode) {
+        user_flag |= PB_USER;
+    }
 
     // Map process stack
     if (
@@ -138,7 +143,7 @@ bool process_prepare(Process* process) {
             PROCESS_DEFAULT_STACK_VADDR,
             mmu_translate(kernel_mmu_table, (u64) stack),
             PS_4K * PROCESS_DEFAULT_STACK_PAGES,
-            PB_USER | PB_READ | PB_WRITE
+            user_flag | PB_READ | PB_WRITE
         )
     ) {
         printf("process_prepare: stack mmu_map failed\n");
@@ -151,8 +156,15 @@ bool process_prepare(Process* process) {
     list_insert(process->rcb.stack_pages, stack);
     list_insert(process->rcb.stack_pages, trap_stack);
 
+    process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE;
+    if (process->supervisor_mode) {
+        process->frame.sstatus |= SSTATUS_SPP_SUPERVISOR;
+    } else {
+        process->frame.sstatus |= SSTATUS_SPP_USER;
+    }
+
     process->frame.gpregs[XREG_SP] = PROCESS_DEFAULT_STACK_VADDR + PS_4K * PROCESS_DEFAULT_STACK_PAGES;
-    process->frame.sstatus = SSTATUS_FS_INITIAL | SSTATUS_SPIE | SSTATUS_SPP_USER;
+
     process->frame.sie = SIE_SEIE | SIE_SSIE | SIE_STIE;
     process->frame.satp = SATP_MODE_SV39 | SATP_SET_ASID(process->pid) | SATP_GET_PPN(mmu_translate(kernel_mmu_table, (u64) process->rcb.ptable));
     process->frame.sscratch = (u64) &process->frame;
@@ -174,6 +186,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
     u64 load_addr_start;
     u64 load_addr_end;
     u64 num_load_pages;
+    u64 user_flag;
     u8 flags;
     u64 i;
     u64 j;
@@ -199,6 +212,11 @@ bool process_load_elf(void* elf_addr, Process* process) {
     if (elf_header.e_type != ET_EXEC) {
         printf("process_load_elf: type not executable: %d\n", elf_header.e_type);
         return false;
+    }
+
+    user_flag = 0;
+    if (!process->supervisor_mode) {
+        user_flag |= PB_USER;
     }
 
     load_addr_start = -1UL;
@@ -255,7 +273,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
         }
 
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
-            flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | PB_USER;
+            flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | user_flag;
 
             if (program_header.p_flags & PF_R) {
                 flags |= PB_READ;
