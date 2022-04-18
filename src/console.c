@@ -18,6 +18,7 @@
 #include <process.h>
 #include <spawn.h>
 #include <schedule.h>
+#include <minix3.h>
 
 
 char blocking_getchar() {
@@ -318,55 +319,60 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    Process* process;
-    u32 num_processes;
-    bool all_flag;
+    // Process* process;
+    // u32 num_processes;
+    // bool all_flag;
 
-    all_flag = false;
+    // all_flag = false;
 
-    if (argc < 2) {
-        printf("usage: test NUM_PROCESSES [-a]\n");
-        return;
-    }
+    // if (argc < 2) {
+    //     printf("usage: test NUM_PROCESSES [-a]\n");
+    //     return;
+    // }
 
-    num_processes = atoi(args[1]);
+    // num_processes = atoi(args[1]);
 
-    if (argc >= 3 && strcmp(args[1], "-a") == 0) {
-        all_flag = true;
-    }
+    // if (argc >= 3 && strcmp(args[1], "-a") == 0) {
+    //     all_flag = true;
+    // }
 
-    schedule_init();
+    // schedule_init();
     
-    for (u32 i = 0; i < num_processes; i++) {
-        process = process_new();
+    // for (u32 i = 0; i < num_processes; i++) {
+    //     process = process_new();
         
-        if (!process_load_elf((void*) 0x0, process)) {
-            printf("test: process_load_elf failed\n");
-            process_free(process);
-            return;
-        }
+    //     if (!process_load_elf((void*) 0x0, process)) {
+    //         printf("test: process_load_elf failed\n");
+    //         process_free(process);
+    //         return;
+    //     }
 
-        if (!process_prepare(process)) {
-            printf("test: process_prepare failed\n");
-            process_free(process);
-            return;
-        }
+    //     if (!process_prepare(process)) {
+    //         printf("test: process_prepare failed\n");
+    //         process_free(process);
+    //         return;
+    //     }
 
-        process->state = PS_RUNNING;
+    //     process->state = PS_RUNNING;
 
-        schedule_add(process);
-    }
+    //     schedule_add(process);
+    // }
 
-    schedule_schedule(1);
-    schedule_schedule(2);
-    schedule_schedule(3);
-    schedule_schedule(4);
-    schedule_schedule(5);
-    schedule_schedule(6);
-    schedule_schedule(7);
+    // schedule_schedule(1);
+    // schedule_schedule(2);
+    // schedule_schedule(3);
+    // schedule_schedule(4);
+    // schedule_schedule(5);
+    // schedule_schedule(6);
+    // schedule_schedule(7);
 
-    if (all_flag) {
-        schedule_schedule(0);
+    // if (all_flag) {
+    //     schedule_schedule(0);
+    // }
+
+    if (!minix3_init()) {
+        printf("test: minix3_init failed\n");
+        return;
     }
 }
 
