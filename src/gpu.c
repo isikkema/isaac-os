@@ -90,7 +90,7 @@ void gpu_handle_irq() {
         kfree(req_info->request);
         kfree(req_info->response);
         if (!req_info->poll) {
-            kfree(req_info);
+            kfree((void*) req_info);
         }
 
         virtio_gpu_device->ack_idx++;
@@ -218,7 +218,7 @@ bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry,
     request_info->response = response;
     request_info->poll = poll;
     request_info->complete = false;
-    virtio_gpu_device->request_info[first_idx] = request_info;
+    virtio_gpu_device->request_info[first_idx] = (void*) request_info;
 
     // Increment indices
     at_idx = (at_idx + 1) % queue_size;
@@ -242,7 +242,7 @@ bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry,
             // WFI();
         }
 
-        kfree(request_info);
+        kfree((void*) request_info);
     }
 
     return true;

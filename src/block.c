@@ -67,7 +67,7 @@ void block_handle_irq() {
             case VIRTIO_BLK_T_OUT:
                 page_dealloc(req_info->data);
                 if (!req_info->poll) {
-                    kfree(req_info);
+                    kfree((void*) req_info);
                 }
         }                
 
@@ -196,7 +196,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
         request_info->desc_status = desc_status;
         request_info->poll = poll;
         request_info->complete = false;
-        virtio_block_device->request_info[first_idx] = request_info;
+        virtio_block_device->request_info[first_idx] = (void*) request_info;
     }
 
     // Increment indices
@@ -223,7 +223,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
             // WFI();
         }
 
-        kfree(request_info);
+        kfree((void*) request_info);
     }
 
     return true;

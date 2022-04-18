@@ -49,7 +49,7 @@ void rng_handle_irq() {
         req_info->complete = true;
 
         if (!req_info->poll) {
-            kfree(req_info);
+            kfree((void*) req_info);
         }
 
         virtio_rng_device->ack_idx++;
@@ -90,7 +90,7 @@ bool rng_request(void* buffer, uint16_t size, bool poll) {
 
     request_info = kzalloc(sizeof(VirtioRngRequestInfo));
     request_info->complete = false;
-    virtio_rng_device->request_info[at_idx] = request_info;
+    virtio_rng_device->request_info[at_idx] = (void*) request_info;
 
     // Increment indices
     virtio_rng_device->queue_driver->idx += 1;
@@ -112,7 +112,7 @@ bool rng_request(void* buffer, uint16_t size, bool poll) {
             // WFI();
         }
 
-        kfree(request_info);
+        kfree((void*) request_info);
     }
 
     return true;
