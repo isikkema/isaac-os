@@ -68,12 +68,21 @@ bool mmu_map(PageTable* tb, uint64_t vaddr, uint64_t paddr, uint64_t bits) {
 }
 
 bool mmu_map_many(PageTable* tb, uint64_t vaddr_start, uint64_t paddr_start, uint64_t num_bytes, uint64_t bits) {
-    uint64_t i;
+    uint64_t vaddr;
+    uint64_t paddr;
+    uint64_t vend;
 
-    for (i = 0; i < num_bytes; i += PS_4K) {
-        if (!mmu_map(tb, vaddr_start + i, paddr_start + i, bits)) {
+    vend = (vaddr_start + num_bytes) & ~(PS_4K - 1UL);
+
+    vaddr = vaddr_start & ~(PS_4K - 1UL);
+    paddr = paddr_start & ~(PS_4K - 1UL);
+    while (vaddr <= vend) {
+        if (!mmu_map(tb, vaddr, paddr, bits)) {
             return false;
         }
+
+        vaddr += PS_4K;
+        paddr += PS_4K;
     }
 
     return true;
