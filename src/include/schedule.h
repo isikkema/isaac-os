@@ -12,6 +12,8 @@
 bool schedule_init();
 void schedule_add(Process* process);
 bool schedule_remove(Process* process);
+Process* schedule_get_process_on_hart(int hart);
+bool schedule_stop(Process* process);
 Process* schedule_pop();
 void schedule_schedule(int hart);
 

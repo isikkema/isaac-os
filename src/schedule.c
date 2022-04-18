@@ -1,4 +1,5 @@
 #include <schedule.h>
+#include <process.h>
 #include <list.h>
 #include <hart.h>
 #include <sbi.h>
@@ -93,10 +94,10 @@ void schedule_add(Process* new_process) {
 
     mutex_sbi_lock(&schedule_lock);
 
-    if (new_process->state == PS_DEAD) {
-        new_process->state = PS_RUNNING;
-    }
-    
+    // if (new_process->state == PS_DEAD) {
+    //     new_process->state = PS_RUNNING;
+    // }
+
     // Just insert at beginning if empty or smallest
     if (
         schedule_processes->head == NULL ||
@@ -147,6 +148,24 @@ bool _schedule_remove(Process* process, bool lock) {
 
 bool schedule_remove(Process* process) {
     return _schedule_remove(process, true); // Always lock, externally
+}
+
+Process* schedule_get_process_on_hart(int hart) {
+    if (!IS_VALID_HART(hart)) {
+        return NULL;
+    }
+
+    return current_processes[hart];
+}
+
+bool schedule_stop(Process* process) {
+    bool rv;
+
+    rv = process->state != PS_DEAD;
+
+    process->state = PS_DEAD;
+
+    return rv;
 }
 
 Process* schedule_pop() {

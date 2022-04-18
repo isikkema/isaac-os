@@ -352,6 +352,8 @@ void test(int argc, char** args) {
             return;
         }
 
+        process->state = PS_RUNNING;
+
         schedule_add(process);
     }
 

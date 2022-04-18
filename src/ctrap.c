@@ -12,6 +12,7 @@ void c_trap(void) {
     u64 sepc;
     u32 hart;
     bool is_async;
+    Process* process;
 
     CSR_READ(scause, "scause");
     CSR_READ(sepc, "sepc");
@@ -40,7 +41,10 @@ void c_trap(void) {
                     WFI_LOOP();
                 }
 
-                // TODO: remove/free process
+                process = schedule_get_process_on_hart(hart);
+                schedule_remove(process);
+                schedule_stop(process);
+                schedule_add(process);
                 schedule_schedule(hart);
         }
     } else {
@@ -52,7 +56,10 @@ void c_trap(void) {
                     WFI_LOOP();
                 }
 
-                // TODO: remove/free process
+                process = schedule_get_process_on_hart(hart);
+                schedule_remove(process);
+                schedule_stop(process);
+                schedule_add(process);
                 schedule_schedule(hart);
         }
     }
