@@ -7,6 +7,7 @@
 #include <plic.h>
 #include <pci.h>
 #include <lock.h>
+#include <csr.h>
 
 
 VirtioDevice* virtio_rng_device;
@@ -20,6 +21,7 @@ bool virtio_rng_driver(volatile EcamHeader* ecam) {
     
     rv = virtio_device_driver(device, ecam);
 
+    device->request_info = kzalloc(sizeof(void*) * device->cfg->queue_size);
     device->handle_irq = rng_handle_irq;
     device->enabled = true;
     virtio_rng_device = device;
@@ -30,18 +32,37 @@ bool virtio_rng_driver(volatile EcamHeader* ecam) {
 
 
 void rng_handle_irq() {
+    u16 ack_idx;
+    u16 queue_size;
+    u32 id;
+    VirtioRngRequestInfo* req_info;
+
+    queue_size = virtio_rng_device->cfg->queue_size;
     while (virtio_rng_device->ack_idx != virtio_rng_device->queue_device->idx) {
-        // I acknowledge!
+        ack_idx = virtio_rng_device->ack_idx;
+
+        id = virtio_rng_device->queue_device->ring[ack_idx % queue_size].id % queue_size;
+
+        req_info = virtio_rng_device->request_info[id];
+
+        // Acknowledge
+        req_info->complete = true;
+
+        if (!req_info->poll) {
+            kfree(req_info);
+        }
+
         virtio_rng_device->ack_idx++;
     }
 }
 
 
-bool rng_fill(void* buffer, u16 size) {
+bool rng_request(void* buffer, uint16_t size, bool poll) {
     u64 phys_addr;
     u32 at_idx;
     u32 queue_size;
     u32* notify_ptr;
+    VirtioRngRequestInfo* request_info;
 
     if (!virtio_rng_device->enabled) {
         return false;
@@ -67,6 +88,10 @@ bool rng_fill(void* buffer, u16 size) {
     // Add descriptor to driver ring
     virtio_rng_device->queue_driver->ring[virtio_rng_device->queue_driver->idx % queue_size] = at_idx;
 
+    request_info = kzalloc(sizeof(VirtioRngRequestInfo));
+    request_info->complete = false;
+    virtio_rng_device->request_info[at_idx] = request_info;
+
     // Increment indices
     virtio_rng_device->queue_driver->idx += 1;
     virtio_rng_device->at_idx = (virtio_rng_device->at_idx + 1) % queue_size;
@@ -78,9 +103,25 @@ bool rng_fill(void* buffer, u16 size) {
         virtio_rng_device->notify->notify_off_multiplier
     );
     
-    mutex_unlock(&virtio_rng_device->lock);
-
     *notify_ptr = 0;
 
+    mutex_unlock(&virtio_rng_device->lock);
+
+    if (poll) {
+        while (!request_info->complete) {
+            // WFI();
+        }
+
+        kfree(request_info);
+    }
+
     return true;
+}
+
+bool rng_fill(void* buffer, uint16_t size) {
+    return rng_request(buffer, size, false);
+}
+
+bool rng_fill_poll(void* buffer, uint16_t size) {
+    return rng_request(buffer, size, true);
 }

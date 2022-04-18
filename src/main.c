@@ -61,8 +61,6 @@ int main(int hart) {
         return 1;
     }
 
-    printf("Just keep pressing enter to get through the WFIs until you see the console prompt.\n");
-
     if (!gpu_init()) {
         printf("gpu_init failed\n");
         return 1;
@@ -91,10 +89,6 @@ int main(int hart) {
         return 1;
     }
 
-    printf("amogus\n");
-
-    // todo: add help, malloc, and free commands
-    //       also improve hart starting/stopping
     run_console();
     sbi_poweroff();
     

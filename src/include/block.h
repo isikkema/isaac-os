@@ -62,7 +62,7 @@ typedef struct virtio_block_desc_status {
    uint8_t status;
 } VirtioBlockDescStatus;
 
-typedef struct virtio_block_request_info {
+typedef volatile struct virtio_block_request_info {
    VirtioBlockDescHeader* desc_header;
    VirtioBlockDescData* desc_data;
    VirtioBlockDescStatus* desc_status;
@@ -70,6 +70,7 @@ typedef struct virtio_block_request_info {
    void* src;
    void* data;
    uint32_t size;
+   bool poll;
    bool complete;
 } VirtioBlockRequestInfo;
 

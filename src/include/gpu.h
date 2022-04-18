@@ -151,9 +151,11 @@ typedef struct virtio_gpu_display_info_response {
    } displays[VIRTIO_GPU_MAX_SCANOUTS];
 } VirtioGpuDisplayInfoResponse;
 
-typedef struct virtio_gpu_request_info {
+typedef volatile struct virtio_gpu_request_info {
    VirtioGpuGenericRequest* request;
    VirtioGpuGenericResponse* response;
+   bool poll;
+   bool complete;
 } VirtioGpuRequestInfo;
 
 typedef struct virtio_gpu_device_info {

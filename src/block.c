@@ -57,10 +57,6 @@ void block_handle_irq() {
             // Copy exact chunk needed from buffer to dst
             device_cfg = virtio_block_device->device_cfg;
 
-            // printf("memcpy: dst: 0x%08lx, src: 0x%08lx, size: %d (0x%x)\n",
-            //     (u64) req_info->dst, (u64) req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size
-            // );
-
             memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
 
@@ -70,7 +66,9 @@ void block_handle_irq() {
             case VIRTIO_BLK_T_IN:
             case VIRTIO_BLK_T_OUT:
                 page_dealloc(req_info->data);
-                kfree(req_info);
+                if (!req_info->poll) {
+                    kfree(req_info);
+                }
         }                
 
         kfree(desc_header);
@@ -196,6 +194,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
         request_info->desc_header = desc_header;
         request_info->desc_data = desc_data;
         request_info->desc_status = desc_status;
+        request_info->poll = poll;
         request_info->complete = false;
         virtio_block_device->request_info[first_idx] = request_info;
     }
@@ -221,8 +220,10 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
 
     if (poll) {
         while (!request_info->complete) {
-            // Poll
+            // WFI();
         }
+
+        kfree(request_info);
     }
 
     return true;

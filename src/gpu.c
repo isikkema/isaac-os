@@ -85,16 +85,20 @@ void gpu_handle_irq() {
                 printf("gpu_handle_irq: unsupported control type: 0x%04x\n", request->hdr.control_type);
         }
 
+        req_info->complete = true;
+        
         kfree(req_info->request);
         kfree(req_info->response);
-        kfree(req_info);
+        if (!req_info->poll) {
+            kfree(req_info);
+        }
 
         virtio_gpu_device->ack_idx++;
     }
 }
 
 
-bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry) {
+bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry, bool poll) {
     u32 at_idx;
     u32 first_idx;
     u32 next_idx;
@@ -212,7 +216,15 @@ bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry)
     request_info = kzalloc(sizeof(VirtioGpuRequestInfo));
     request_info->request = request;
     request_info->response = response;
+    request_info->poll = poll;
+    request_info->complete = false;
     virtio_gpu_device->request_info[first_idx] = request_info;
+
+    // Increment indices
+    at_idx = (at_idx + 1) % queue_size;
+    virtio_gpu_device->at_idx = at_idx;
+
+    virtio_gpu_device->queue_driver->idx += 1;
 
     // Notify
     notify_ptr = (u32*) BAR_NOTIFY_CAP(
@@ -221,19 +233,22 @@ bool gpu_request(VirtioGpuGenericRequest* request, VirtioGpuMemEntry* mem_entry)
         virtio_gpu_device->notify->notify_off_multiplier
     );
     
+    *notify_ptr = 0;
+
     mutex_unlock(&virtio_gpu_device->lock);
 
-    // Increment indices
-    at_idx = (at_idx + 1) % queue_size;
-    virtio_gpu_device->at_idx = at_idx;
+    if (poll) {
+        while (!request_info->complete) {
+            // WFI();
+        }
 
-    virtio_gpu_device->queue_driver->idx += 1;
-
-    // Notify even after unlock so it hopefully stops interrupting before my WFI instructions
-    *notify_ptr = 0;
+        kfree(request_info);
+    }
 
     return true;
 }
+
+// todo: make non-polling versions of these
 
 bool gpu_get_display_info() {
     VirtioGpuGenericRequest* request;
@@ -241,7 +256,7 @@ bool gpu_get_display_info() {
     request = kzalloc(sizeof(VirtioGpuGenericRequest));
     request->hdr.control_type = VIRTIO_GPU_CMD_GET_DISPLAY_INFO;
     
-    return gpu_request(request, NULL);
+    return gpu_request(request, NULL, true);
 }
 
 uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_t height) {
@@ -256,7 +271,7 @@ uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_
 
     virtio_gpu_avail_resource_id++;
     
-    if (gpu_request((VirtioGpuGenericRequest*) request, NULL)) {
+    if (gpu_request((VirtioGpuGenericRequest*) request, NULL, true)) {
         return request->resource_id;
     } else {
         return -1;
@@ -279,7 +294,7 @@ VirtioGpuPixel* gpu_resource_attach_backing(uint32_t resource_id, uint32_t width
     mem_entry->addr = mmu_translate(kernel_mmu_table, (u64) framebuffer);
     mem_entry->length = sizeof(VirtioGpuPixel) * width * height;
     
-    if (gpu_request((VirtioGpuGenericRequest*) request, mem_entry)) {
+    if (gpu_request((VirtioGpuGenericRequest*) request, mem_entry, true)) {
         return framebuffer;
     } else {
         return NULL;
@@ -295,7 +310,7 @@ bool gpu_set_scanout(VirtioGpuRectangle rect, uint32_t scanout_id, uint32_t reso
     request->scanout_id = scanout_id;
     request->resource_id = resource_id;
     
-    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL, true);
 }
 
 bool gpu_transfer_to_host_2d(VirtioGpuRectangle rect, uint64_t offset, uint32_t resource_id) {
@@ -307,7 +322,7 @@ bool gpu_transfer_to_host_2d(VirtioGpuRectangle rect, uint64_t offset, uint32_t 
     request->offset = offset;
     request->resource_id = resource_id;
 
-    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL, true);
 }
 
 bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id) {
@@ -318,7 +333,7 @@ bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id) {
     request->rect = rect;
     request->resource_id = resource_id;
 
-    return gpu_request((VirtioGpuGenericRequest*) request, NULL);
+    return gpu_request((VirtioGpuGenericRequest*) request, NULL, true);
 }
 
 bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, VirtioGpuRectangle screen_rect, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel) {
@@ -352,8 +367,6 @@ bool gpu_init() {
         return false;
     }
 
-    WFI();
-
     gpu_info = virtio_gpu_device->device_info;
     scanout_id = 0;
     width = gpu_info->displays[scanout_id].rect.width;
@@ -364,14 +377,10 @@ bool gpu_init() {
         return false;
     }
 
-    WFI();
-
     framebuffer = gpu_resource_attach_backing(fb_resource_id, width, height);
     if (framebuffer == NULL) {
         return false;
     }
-
-    WFI();
 
     screen_rect.x = 0;
     screen_rect.y = 0;
@@ -381,8 +390,6 @@ bool gpu_init() {
     if (!gpu_set_scanout(screen_rect, scanout_id, fb_resource_id)) {
         return false;
     }
-
-    WFI();
 
     gpu_info->displays[scanout_id].resource_id = fb_resource_id;
     gpu_info->displays[scanout_id].framebuffer = framebuffer;
@@ -414,14 +421,10 @@ bool gpu_fill_and_flush(uint32_t scanout_id, VirtioGpuRectangle fill_rect, Virti
         return false;
     }
 
-    WFI();
-
     if (!gpu_resource_flush(fill_rect, resource_id)) {
         printf("gpu_resource_flush failed\n");
         return false;
     }
-
-    WFI();
 
     return true;
 }
