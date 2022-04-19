@@ -3,11 +3,16 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <list.h>
 
 
-#define MINIX3_SUPERBLOCK_ADDR  ((void*) 1024UL)
+#define MINIX3_MAGIC                0x4d5a
+#define MINIX3_SUPERBLOCK_OFFSET    1024UL
+#define MINIX3_ROOT_INODE           1
+#define MINIX3_ZONES_PER_INODE      10
+#define MINIX3_NAME_SIZE            60
 
-#define S_IFMT      00170000
+#define S_IFMT      0170000
 #define S_IFSOCK    0140000
 #define S_IFLNK     0120000
 #define S_IFREG     0100000
@@ -76,5 +81,13 @@ typedef struct DirEntry {
     char name[60];
 } DirEntry;
 
+typedef struct Minix3CacheNode {
+    Inode inode;
+    DirEntry entry;
+    List* children;
+    bool visited;
+} Minix3CacheNode;
+
 
 bool minix3_init();
+bool minix3_cache_inodes();
