@@ -41,12 +41,16 @@ ListNode* list_insert(List* list, void* data) {
     new_node->data = data;
     new_node->next = list->head;
 
+    if (list->head == NULL) {
+        list->last = new_node;
+    }
+
     list->head = new_node;
 
     return new_node;
 }
 
-ListNode* list_insert_after(ListNode* node, void* data) {
+ListNode* list_insert_after(List* list, ListNode* node, void* data) {
     ListNode* new_node;
 
     new_node = kmalloc(sizeof(ListNode));
@@ -54,6 +58,10 @@ ListNode* list_insert_after(ListNode* node, void* data) {
     new_node->next = node->next;
 
     node->next = new_node;
+
+    if (list->last == node) {
+        list->last = new_node;
+    }
 
     return new_node;
 }
@@ -64,6 +72,10 @@ bool list_remove(List* list, void* data) {
 
     it = NULL;
     if (list->head != NULL && list->head->data == data) {
+        if (list->last == list->head) {
+            list->last = NULL;
+        }
+
         it = list->head;
         list->head = list->head->next;
         kfree(it);
@@ -81,6 +93,10 @@ bool list_remove(List* list, void* data) {
 
     if (it == NULL) {
         return false;
+    }
+
+    if (list->last == it) {
+        list->last = prev;
     }
 
     kfree(it);
