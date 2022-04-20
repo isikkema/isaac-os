@@ -53,6 +53,10 @@ ListNode* list_insert(List* list, void* data) {
 ListNode* list_insert_after(List* list, ListNode* node, void* data) {
     ListNode* new_node;
 
+    if (node == NULL) {
+        return list_insert(list, data);
+    }
+
     new_node = kmalloc(sizeof(ListNode));
     new_node->data = data;
     new_node->next = node->next;

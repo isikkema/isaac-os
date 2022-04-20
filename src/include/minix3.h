@@ -91,3 +91,5 @@ typedef struct Minix3CacheNode {
 
 bool minix3_init();
 bool minix3_cache_inodes();
+List* minix3_split_path(char* path);
+Minix3CacheNode* minix3_get_file(char* path);

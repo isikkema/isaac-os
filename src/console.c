@@ -374,6 +374,16 @@ void test(int argc, char** args) {
         printf("test: minix3_init failed\n");
         return;
     }
+
+    minix3_split_path("hello/world");
+    minix3_split_path("/hello/world");
+    minix3_split_path("//hello/world");
+    minix3_split_path("///hello//////world");
+    minix3_split_path("///hello//////world///");
+    minix3_split_path("///hello\\/world///file");
+    minix3_split_path("///hello\\\\/world///file");
+    minix3_split_path("///hello\\\\/wor\\ld///file");
+    minix3_split_path("///hello\\\\/wo\\\\rld///file");
 }
 
 void random(int argc, char** args) {

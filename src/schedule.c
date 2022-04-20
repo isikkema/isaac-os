@@ -121,7 +121,7 @@ void schedule_add(Process* new_process) {
         }
     }
 
-    list_insert_after(it, new_process);
+    list_insert_after(schedule_processes, it, new_process);
     mutex_unlock(&schedule_lock);
 }
 
