@@ -204,6 +204,7 @@ char* minix3_deescape_name(char* name) {
 
 List* minix3_split_path(char* path) {
     List* list;
+    ListNode* it;
     char* chunk;
     u32 start_idx;
     u32 end_idx;
@@ -278,12 +279,65 @@ List* minix3_split_path(char* path) {
         list_insert_after(list, list->last, chunk);
     }
 
-    ListNode* it;
-    i = 0;
     for (it = list->head; it != NULL; it = it->next) {
-        printf("%d: [%s]\n", i, minix3_deescape_name(it->data));
-        i++;
+        chunk = it->data;
+        it->data = minix3_deescape_name(chunk);
+        kfree(chunk);
     }
 
     return list;
+}
+
+Minix3CacheNode* minix3_get_file(char* path) {
+    List* path_names;
+    char* name;
+    ListNode* name_it;
+    ListNode* cnode_it;
+    Minix3CacheNode* current_cnode;
+    Minix3CacheNode* tmp_cnode;
+    bool found_flag;
+
+    path_names = minix3_split_path(path);
+    
+    if (strcmp(path_names->head->data, "/") != 0) {
+        printf("minix3_get_file: filepath must be absolute (%s)\n", path);
+
+        list_free_data(path_names);
+        list_free(path_names);
+
+        return NULL;
+    }
+
+    name = path_names->head->data;
+    list_remove(path_names, name);
+    kfree(name);
+
+    current_cnode = minix3_inode_cache;
+    for (name_it = path_names->head; name_it != NULL; name_it = name_it->next) {
+        found_flag = false;
+        name = name_it->data;
+
+        for (cnode_it = current_cnode->children->head; cnode_it != NULL; cnode_it = cnode_it->next) {
+            tmp_cnode = cnode_it->data;
+            if (strcmp(tmp_cnode->entry.name, name_it->data) == 0) {
+                current_cnode = tmp_cnode;
+                found_flag = true;
+                break;
+            }
+        }
+
+        if (!found_flag) {
+            printf("minix3_get_file: no file named (%s) found in path (%s)\n", name, path);
+
+            list_free_data(path_names);
+            list_free(path_names);
+
+            return NULL;
+        }
+    }
+
+    list_free_data(path_names);
+    list_free(path_names);
+
+    return current_cnode;
 }

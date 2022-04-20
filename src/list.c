@@ -22,6 +22,14 @@ void list_free(List* list) {
     kfree(list);
 }
 
+void list_free_data(List* list) {
+    ListNode* it;
+
+    for (it = list->head; it != NULL; it = it->next) {
+        kfree(it->data);
+    }
+}
+
 ListNode* list_find(List* list, void* data) {
     ListNode* it;
 

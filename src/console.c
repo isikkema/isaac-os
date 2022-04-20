@@ -370,20 +370,62 @@ void test(int argc, char** args) {
     //     schedule_schedule(0);
     // }
 
+    Minix3CacheNode* cnode;
+
     if (!minix3_init()) {
         printf("test: minix3_init failed\n");
         return;
     }
 
-    minix3_split_path("hello/world");
-    minix3_split_path("/hello/world");
-    minix3_split_path("//hello/world");
-    minix3_split_path("///hello//////world");
-    minix3_split_path("///hello//////world///");
-    minix3_split_path("///hello\\/world///file");
-    minix3_split_path("///hello\\\\/world///file");
-    minix3_split_path("///hello\\\\/wor\\ld///file");
-    minix3_split_path("///hello\\\\/wo\\\\rld///file");
+    cnode = minix3_get_file("/mytextfile.txt");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2/nest3");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2/nest3/nest4");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5/nest6");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5/nest6/nest7");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/open_me");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
+
+    cnode = minix3_get_file("/open_me/random.bytes");
+    if (cnode != NULL) {
+        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
+    }
 }
 
 void random(int argc, char** args) {
