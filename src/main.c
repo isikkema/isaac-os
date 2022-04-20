@@ -11,6 +11,7 @@
 #include <gpu.h>
 #include <input.h>
 #include <process.h>
+#include <schedule.h>
 #include <rs_int.h>
 
 
@@ -87,6 +88,15 @@ int main(int hart) {
     if (!process_init()) {
         printf("process_init failed\n");
         return 1;
+    }
+
+    if (!schedule_init()) {
+        printf("schedule_init failed\n");
+        return 1;
+    }
+
+    for (u32 i = 1; i < NUM_HARTS; i++) {
+        schedule_schedule(i);
     }
 
     run_console();

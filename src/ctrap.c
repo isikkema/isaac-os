@@ -36,10 +36,6 @@ void c_trap(void) {
             
             default:
                 printf("error: c_trap: unhandled asynchronous interrupt: %ld\n", scause);
-                if (hart == 0) {
-                    printf("waiting for interrupt...\n");
-                    WFI_LOOP();
-                }
 
                 process = schedule_get_process_on_hart(hart);
                 schedule_remove(process);
@@ -51,10 +47,6 @@ void c_trap(void) {
         switch (scause) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
-                if (hart == 0) {
-                    printf("waiting for interrupt...\n");
-                    WFI_LOOP();
-                }
 
                 process = schedule_get_process_on_hart(hart);
                 schedule_remove(process);
