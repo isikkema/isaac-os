@@ -49,7 +49,7 @@
 #define S_IXOTH 00001
 
 
-typedef struct SuperBlock {
+typedef struct Minix3SuperBlock {
     uint32_t num_inodes;
     uint16_t pad0;
     uint16_t imap_blocks;
@@ -63,9 +63,9 @@ typedef struct SuperBlock {
     uint16_t pad2;
     uint16_t block_size;
     uint8_t disk_version;
-} SuperBlock;
+} Minix3SuperBlock;
 
-typedef struct Inode {
+typedef struct Minix3Inode {
     uint16_t mode;
     uint16_t nlinks;
     uint16_t uid;
@@ -75,16 +75,16 @@ typedef struct Inode {
     uint32_t mtime;
     uint32_t ctime;
     uint32_t zones[10];
-} Inode;
+} Minix3Inode;
 
-typedef struct DirEntry {
+typedef struct Minix3DirEntry {
     uint32_t inode;
     char name[60];
-} DirEntry;
+} Minix3DirEntry;
 
 typedef struct Minix3CacheNode {
-    Inode inode;
-    DirEntry entry;
+    Minix3Inode inode;
+    Minix3DirEntry entry;
     List* children;
     bool visited;
 } Minix3CacheNode;

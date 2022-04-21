@@ -19,6 +19,7 @@
 #include <spawn.h>
 #include <schedule.h>
 #include <minix3.h>
+#include <ext4.h>
 
 
 char blocking_getchar() {
@@ -319,71 +320,10 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    Minix3CacheNode* cnode;
-
-    if (!minix3_init()) {
-        printf("test: minix3_init failed\n");
+    if (!ext4_init()) {
+        printf("test: ext4_init failed\n");
         return;
     }
-
-    cnode = minix3_get_file("/mytextfile.txt");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2/nest3");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2/nest3/nest4");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5/nest6");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/nest1/nest2/nest3/nest4/nest5/nest6/nest7");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/open_me");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    cnode = minix3_get_file("/open_me/random.bytes");
-    if (cnode != NULL) {
-        printf("test: cnode: inum: %4d\n", cnode->entry.inode);
-    }
-
-    char* buf = kzalloc(50001);
-    printf("test: /mytextfile.txt:\n");
-    u32 num_read = minix3_read_file("/mytextfile.txt", buf, 50000);
-    if (num_read != -1UL) {
-        printf("%s", buf);
-    }
-
-    printf("\ntest: num_read: %d\n", num_read);
 }
 
 void random(int argc, char** args) {

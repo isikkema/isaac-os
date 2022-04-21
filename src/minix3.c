@@ -8,33 +8,33 @@
 #include <printf.h>
 
 
-SuperBlock sb;
+Minix3SuperBlock minix3_sb;
 Minix3CacheNode* minix3_inode_cache;
 
 
 #define GET_INODE_ADDR(inum) (                  \
-    (Inode*) (                                  \
+    (Minix3Inode*) (                                  \
         MINIX3_SUPERBLOCK_OFFSET +              \
-        (u64) sb.block_size +                   \
-        (u64) sb.imap_blocks * sb.block_size +  \
-        (u64) sb.zmap_blocks * sb.block_size +  \
-        (inum - 1) * sizeof(Inode)              \
+        (u64) minix3_sb.block_size +                   \
+        (u64) minix3_sb.imap_blocks * minix3_sb.block_size +  \
+        (u64) minix3_sb.zmap_blocks * minix3_sb.block_size +  \
+        (inum - 1) * sizeof(Minix3Inode)              \
     )                                           \
 )
 
 #define GET_ZONE_ADDR(zone) (               \
-    (void*) ((u64) zone * sb.block_size)    \
+    (void*) ((u64) zone * minix3_sb.block_size)    \
 )
 
 
 bool minix3_init() {
-    if (!block_read_poll(&sb, (void*) MINIX3_SUPERBLOCK_OFFSET, sizeof(SuperBlock))) {
+    if (!block_read_poll(&minix3_sb, (void*) MINIX3_SUPERBLOCK_OFFSET, sizeof(Minix3SuperBlock))) {
         printf("minix3_init: superblock read failed\n");
         return false;
     }
 
-    if (sb.magic != MINIX3_MAGIC) {
-        printf("minix3_init: invalid magic: 0x%04x != 0x%04x\n", sb.magic, MINIX3_MAGIC);
+    if (minix3_sb.magic != MINIX3_MAGIC) {
+        printf("minix3_init: invalid magic: 0x%04x != 0x%04x\n", minix3_sb.magic, MINIX3_MAGIC);
         return false;
     }
 
@@ -48,11 +48,11 @@ bool minix3_init() {
 
 bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNode* cnode) {
     Minix3CacheNode* child_cnode;
-    Inode inode;
-    Inode* inode_ptr;
+    Minix3Inode inode;
+    Minix3Inode* inode_ptr;
     u64 zone;
     void* block;
-    DirEntry* dir_entry;
+    Minix3DirEntry* dir_entry;
     bool cached_flag;
     size_t num_read;
     u32 i;
@@ -61,7 +61,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
         return false;
     }
 
-    block = kzalloc(sb.block_size);
+    block = kzalloc(minix3_sb.block_size);
 
     // todo: handle indirect zones
 
@@ -72,20 +72,15 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
         }
 
         // Read DirEntries into block
-        // if (!block_read_poll(block, GET_ZONE_ADDR(zone), sb.block_size)) {
-        //     printf("minix3_init: zone %d read failed\n", zone);
-        //     kfree(block);
-        //     return false;
-        // }
-        num_read = minix3_read_zone(zone, Z_DIRECT, block, sb.block_size);
-        if (num_read != sb.block_size) {
+        num_read = minix3_read_zone(zone, Z_DIRECT, block, minix3_sb.block_size);
+        if (num_read != minix3_sb.block_size) {
             printf("minix3_init: zone %d read failed\n", zone);
             kfree(block);
             return false;
         }
 
         // For each DirEntry in block
-        for (dir_entry = block; (void*) (dir_entry + 1) <= block + sb.block_size; dir_entry++) {
+        for (dir_entry = block; (void*) (dir_entry + 1) <= block + minix3_sb.block_size; dir_entry++) {
             if (dir_entry->inode == 0) {
                 continue;
             }
@@ -97,7 +92,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
                 cached_flag = false;
 
                 inode_ptr = &inode;
-                if (!block_read_poll(inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Inode))) {
+                if (!block_read_poll(inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Minix3Inode))) {
                     printf("minix3_init: root inode read failed\n");
                     return false;
                 }
@@ -131,13 +126,13 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
 }
 
 bool minix3_cache_inodes() {
-    Inode inode;
+    Minix3Inode inode;
     Minix3CacheNode* cnode;
     List* nodes_to_cache;
     Map* inum_to_inode;
 
     // Read root inode from disk
-    if (!block_read_poll(&inode, GET_INODE_ADDR(MINIX3_ROOT_INODE), sizeof(Inode))) {
+    if (!block_read_poll(&inode, GET_INODE_ADDR(MINIX3_ROOT_INODE), sizeof(Minix3Inode))) {
         printf("minix3_init: root inode read failed\n");
         return false;
     }
@@ -368,19 +363,19 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
     max_count = 0;
     switch (type) {
         case Z_DIRECT:
-            max_count = (u64) sb.block_size;
+            max_count = (u64) minix3_sb.block_size;
             break;
         
         case Z_SINGLY_INDIRECT:
-            max_count = (u64) sb.block_size * sb.block_size;
+            max_count = (u64) minix3_sb.block_size * minix3_sb.block_size;
             break;
 
         case Z_DOUBLY_INDIRECT:
-            max_count = (u64) sb.block_size * sb.block_size * sb.block_size;
+            max_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
             break;
 
         case Z_TRIPLY_INDIRECT:
-            max_count = (u64) sb.block_size * sb.block_size * sb.block_size * sb.block_size;
+            max_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
             break;
     }
 
@@ -402,14 +397,14 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
     // Otherwise, recursively read zones
 
     // Read one full block of zone pointers
-    block = kmalloc(sb.block_size);
-    if (!block_read_poll(block, zone_addr, sb.block_size)) {
+    block = kmalloc(minix3_sb.block_size);
+    if (!block_read_poll(block, zone_addr, minix3_sb.block_size)) {
         kfree(block);
         return -1UL;
     }
 
     total_read = 0;
-    for (i = 0; i < sb.block_size / sizeof(u32); i++) {
+    for (i = 0; i < minix3_sb.block_size / sizeof(u32); i++) {
         // Skip unused zone pointers
         if (block[i] == 0) {
             continue;
@@ -474,19 +469,19 @@ size_t minix3_read_file(char* path, void* buf, size_t count) {
         zone_count = 0;
         switch (type) {
             case Z_DIRECT:
-                zone_count = (u64) sb.block_size;
+                zone_count = (u64) minix3_sb.block_size;
                 break;
             
             case Z_SINGLY_INDIRECT:
-                zone_count = (u64) sb.block_size * sb.block_size;
+                zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size;
                 break;
 
             case Z_DOUBLY_INDIRECT:
-                zone_count = (u64) sb.block_size * sb.block_size * sb.block_size;
+                zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
                 break;
 
             case Z_TRIPLY_INDIRECT:
-                zone_count = (u64) sb.block_size * sb.block_size * sb.block_size * sb.block_size;
+                zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
                 break;
         }
 

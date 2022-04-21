@@ -12,6 +12,7 @@
 #include <input.h>
 #include <process.h>
 #include <schedule.h>
+#include <minix3.h>
 #include <rs_int.h>
 
 
@@ -84,6 +85,11 @@ int main(int hart) {
         printf("gpu_fill_and_fluh failed\n");
         return 1;
     }
+
+    // if (!minix3_init()) {
+    //     printf("minix3_init failed\n");
+    //     return 1;
+    // }
 
     if (!process_init()) {
         printf("process_init failed\n");
