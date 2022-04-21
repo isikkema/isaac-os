@@ -375,6 +375,17 @@ void test(int argc, char** args) {
     if (cnode != NULL) {
         printf("test: cnode: inum: %4d\n", cnode->entry.inode);
     }
+
+    char* buf = kzalloc(50001);
+    printf("test: /mytextfile.txt:\n");
+    u32 num_read = minix3_read_file("/mytextfile.txt", buf, 50000);
+    if (num_read != -1UL) {
+        for (u32 i = 0; i < num_read; i++) {
+            printf("%02x ", buf[i]);
+        }
+    }
+
+    printf("\ntest: num_read: %d\n", num_read);
 }
 
 void random(int argc, char** args) {

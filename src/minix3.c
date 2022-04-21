@@ -54,6 +54,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
     void* block;
     DirEntry* dir_entry;
     bool cached_flag;
+    size_t num_read;
     u32 i;
 
     if (!S_ISDIR(cnode->inode.mode)) {
@@ -71,7 +72,13 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
         }
 
         // Read DirEntries into block
-        if (!block_read_poll(block, GET_ZONE_ADDR(zone), sb.block_size)) {
+        // if (!block_read_poll(block, GET_ZONE_ADDR(zone), sb.block_size)) {
+        //     printf("minix3_init: zone %d read failed\n", zone);
+        //     kfree(block);
+        //     return false;
+        // }
+        num_read = minix3_read_zone(zone, Z_DIRECT, block, sb.block_size);
+        if (num_read != sb.block_size) {
             printf("minix3_init: zone %d read failed\n", zone);
             kfree(block);
             return false;
@@ -106,7 +113,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
             memcpy(child_cnode->entry.name, dir_entry->name, MINIX3_NAME_SIZE);
             child_cnode->children = list_new();
 
-            printf("minix3_cache_cnode: inum: %4d, name: %s\n", dir_entry->inode, dir_entry->name);
+            printf("minix3_cache_cnode: inum: %4d, size: %d, name: %s\n", dir_entry->inode, child_cnode->inode.size, dir_entry->name);
 
             // Add new child_cnode to cnode's children list
             list_insert(cnode->children, child_cnode);
@@ -340,4 +347,115 @@ Minix3CacheNode* minix3_get_file(char* path) {
     list_free(path_names);
 
     return current_cnode;
+}
+
+size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t count) {
+    size_t num_read;
+    size_t total_read;
+    void* zone_addr;
+    u32* block;
+    u32 i;
+
+    if (zone == 0 || type < Z_DIRECT || type > Z_TRIPLY_INDIRECT) {
+        return -1UL;
+    }
+
+    if (count == 0) {
+        return 0;
+    }
+
+    zone_addr = GET_ZONE_ADDR(zone);
+
+    // If direct, just read and return
+    if (type == Z_DIRECT) {
+        if (!block_read_poll(buf, GET_ZONE_ADDR(zone), count)) {
+            return -1UL;
+        }
+
+        return count;
+    }
+
+    // Otherwise, recursively read zones
+
+    // Read one full block of zone pointers
+    block = kmalloc(sb.block_size);
+    if (!block_read_poll(buf, GET_ZONE_ADDR(zone), count)) {
+        kfree(block);
+        return -1UL;
+    }
+
+    total_read = 0;
+    for (i = 0; i < sb.block_size / sizeof(u32); i++) {
+        // Skip unused zone pointers
+        if (block[i] == 0) {
+            continue;
+        }
+
+        num_read = minix3_read_zone(block[i], type - 1, buf + total_read, count - total_read);
+        if (num_read == -1UL) {
+            kfree(block);
+            return -1UL;
+        }
+
+        total_read += num_read;
+        
+        if (total_read == count) {
+            break;
+        }
+    }
+
+    return total_read;
+}
+
+size_t minix3_read_file(char* path, void* buf, size_t count) {
+    Minix3CacheNode* cnode;
+    u32 zone;
+    Minix3ZoneType type;
+    size_t num_read;
+    size_t total_read;
+    u32 i;
+
+    if (count == 0) {
+        return 0;
+    }
+
+    cnode = minix3_get_file(path);
+    if (cnode == NULL) {
+        return 0;
+    }
+
+    if (count > cnode->inode.size) {
+        count = cnode->inode.size;
+    }
+
+    total_read = 0;
+    for (i = 0; i < MINIX3_ZONES_PER_INODE; i++) {
+        zone = cnode->inode.zones[i];
+        if (zone == 0) {
+            continue;
+        }
+
+        if (i < 7) {
+            type = Z_DIRECT;
+        } else if (i == 7) {
+            type = Z_SINGLY_INDIRECT;
+        } else if (i == 8) {
+            type = Z_DOUBLY_INDIRECT;
+        } else if (i == 9) {
+            type = Z_TRIPLY_INDIRECT;
+        }
+
+        num_read = minix3_read_zone(zone, type, buf + total_read, count - total_read);
+        if (num_read == -1UL) {
+            return -1UL;
+        }
+
+        total_read += num_read;
+
+        if (total_read == count) {
+            break;
+        }
+    }
+
+    return total_read;
 }
