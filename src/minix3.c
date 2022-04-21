@@ -354,6 +354,7 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
     size_t total_read;
     void* zone_addr;
     u32* block;
+    size_t max_count;
     u32 i;
 
     if (zone == 0 || type < Z_DIRECT || type > Z_TRIPLY_INDIRECT) {
@@ -364,11 +365,34 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
         return 0;
     }
 
+    max_count = 0;
+    switch (type) {
+        case Z_DIRECT:
+            max_count = (u64) sb.block_size;
+            break;
+        
+        case Z_SINGLY_INDIRECT:
+            max_count = (u64) sb.block_size * sb.block_size;
+            break;
+
+        case Z_DOUBLY_INDIRECT:
+            max_count = (u64) sb.block_size * sb.block_size * sb.block_size;
+            break;
+
+        case Z_TRIPLY_INDIRECT:
+            max_count = (u64) sb.block_size * sb.block_size * sb.block_size * sb.block_size;
+            break;
+    }
+
+    if (count > max_count) {
+        count = max_count;
+    }
+
     zone_addr = GET_ZONE_ADDR(zone);
 
     // If direct, just read and return
     if (type == Z_DIRECT) {
-        if (!block_read_poll(buf, GET_ZONE_ADDR(zone), count)) {
+        if (!block_read_poll(buf, zone_addr, count)) {
             return -1UL;
         }
 
@@ -379,7 +403,7 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
 
     // Read one full block of zone pointers
     block = kmalloc(sb.block_size);
-    if (!block_read_poll(buf, GET_ZONE_ADDR(zone), count)) {
+    if (!block_read_poll(block, zone_addr, sb.block_size)) {
         kfree(block);
         return -1UL;
     }
@@ -404,6 +428,7 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
         }
     }
 
+    kfree(block);
     return total_read;
 }
 
@@ -411,6 +436,7 @@ size_t minix3_read_file(char* path, void* buf, size_t count) {
     Minix3CacheNode* cnode;
     u32 zone;
     Minix3ZoneType type;
+    size_t zone_count;
     size_t num_read;
     size_t total_read;
     u32 i;
@@ -445,7 +471,30 @@ size_t minix3_read_file(char* path, void* buf, size_t count) {
             type = Z_TRIPLY_INDIRECT;
         }
 
-        num_read = minix3_read_zone(zone, type, buf + total_read, count - total_read);
+        zone_count = 0;
+        switch (type) {
+            case Z_DIRECT:
+                zone_count = (u64) sb.block_size;
+                break;
+            
+            case Z_SINGLY_INDIRECT:
+                zone_count = (u64) sb.block_size * sb.block_size;
+                break;
+
+            case Z_DOUBLY_INDIRECT:
+                zone_count = (u64) sb.block_size * sb.block_size * sb.block_size;
+                break;
+
+            case Z_TRIPLY_INDIRECT:
+                zone_count = (u64) sb.block_size * sb.block_size * sb.block_size * sb.block_size;
+                break;
+        }
+
+        if (count - total_read < zone_count) {
+            zone_count = count - total_read;
+        }
+
+        num_read = minix3_read_zone(zone, type, buf + total_read, zone_count);
         if (num_read == -1UL) {
             return -1UL;
         }
