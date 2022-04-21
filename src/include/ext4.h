@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <list.h>
 
-
+#define EXT4_MAGIC              0xef53
 #define EXT4_SUPERBLOCK_OFFSET  1024UL
 #define EXT2_N_BLOCKS           15
+#define EXT4_EXTENTS_FL         0x00080000
 #define EXT3_EXTENT_MAGIC       0xf30a
 #define EXT2_NAME_LEN           255
 #define EXT2_LABEL_LEN          16
@@ -32,6 +34,19 @@
 #define EXT2_FT_SOCK        6 /* 0b110 */
 #define EXT2_FT_SYMLINK     7 /* 0b111 */
 #define EXT2_FT_MAX         8
+
+#define EXT4_IS_REG_FILE(m) (((m) & EXT2_FT_REG_FILE) == EXT2_FT_REG_FILE)
+#define EXT4_IS_DIR(m)      (((m) & EXT2_FT_DIR) == EXT2_FT_DIR)
+#define EXT4_IS_CHRDEV(m)   (((m) & EXT2_FT_CHRDEV) == EXT2_FT_CHRDEV)
+#define EXT4_IS_BLKDEV(m)   (((m) & EXT2_FT_BLKDEV) == EXT2_FT_BLKDEV)
+#define EXT4_IS_FIFO(m)     (((m) & EXT2_FT_FIFO) == EXT2_FT_FIFO)
+#define EXT4_IS_SOCK(m)     (((m) & EXT2_FT_SOCK) == EXT2_FT_SOCK)
+#define EXT4_IS_SYMLINK(m)  (((m) & EXT2_FT_SYMLINK) == EXT2_FT_SYMLINK)
+
+#define EXT4_COMBINE_VAL16(hi, lo)  (((uint64_t) hi << 16) | lo)
+#define EXT4_COMBINE_VAL32(hi, lo)  (((uint64_t) hi << 32) | lo)
+
+#define EXT4_GET_BLOCKSIZE(sb)      (1024UL << sb.s_log_block_size)
 
 
 typedef struct ext2_super_block {
@@ -276,6 +291,12 @@ typedef struct extent {
     uint16_t  ee_start_hi; /* high 16 bits of physical block */
     uint32_t  ee_start;    /* low 32 bigs of physical block */
 } Ext4Extent;
+
+typedef struct Ext4CacheNode {
+    Ext4Inode inode;
+    Ext4DirEntry entry;
+    List* children;
+} Ext4CacheNode;
 
 
 bool ext4_init();

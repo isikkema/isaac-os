@@ -63,9 +63,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
 
     block = kzalloc(minix3_sb.block_size);
 
-    // todo: handle indirect zones
-
-    for (i = 0; i < MINIX3_ZONES_PER_INODE - 3; i++) {
+    for (i = 0; i < MINIX3_ZONES_PER_INODE; i++) {
         zone = cnode->inode.zones[i];
         if (zone == 0) {
             continue;

@@ -86,7 +86,6 @@ typedef struct Minix3CacheNode {
     Minix3Inode inode;
     Minix3DirEntry entry;
     List* children;
-    bool visited;
 } Minix3CacheNode;
 
 typedef enum Minix3ZoneType {
