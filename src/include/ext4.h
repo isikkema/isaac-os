@@ -35,13 +35,40 @@
 #define EXT2_FT_SYMLINK     7 /* 0b111 */
 #define EXT2_FT_MAX         8
 
-#define EXT4_IS_REG_FILE(m) (((m) & EXT2_FT_REG_FILE) == EXT2_FT_REG_FILE)
-#define EXT4_IS_DIR(m)      (((m) & EXT2_FT_DIR) == EXT2_FT_DIR)
-#define EXT4_IS_CHRDEV(m)   (((m) & EXT2_FT_CHRDEV) == EXT2_FT_CHRDEV)
-#define EXT4_IS_BLKDEV(m)   (((m) & EXT2_FT_BLKDEV) == EXT2_FT_BLKDEV)
-#define EXT4_IS_FIFO(m)     (((m) & EXT2_FT_FIFO) == EXT2_FT_FIFO)
-#define EXT4_IS_SOCK(m)     (((m) & EXT2_FT_SOCK) == EXT2_FT_SOCK)
-#define EXT4_IS_SYMLINK(m)  (((m) & EXT2_FT_SYMLINK) == EXT2_FT_SYMLINK)
+#define S_IFMT      0170000
+#define S_IFSOCK    0140000
+#define S_IFLNK     0120000
+#define S_IFREG     0100000
+#define S_IFBLK     0060000
+#define S_IFDIR     0040000
+#define S_IFCHR     0020000
+#define S_IFIFO     0010000
+#define S_ISUID     0004000
+#define S_ISGID     0002000
+#define S_ISVTX     0001000
+
+#define S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+
+#define S_IRWXU 00700
+#define S_IRUSR 00400
+#define S_IWUSR 00200
+#define S_IXUSR 00100
+
+#define S_IRWXG 00070
+#define S_IRGRP 00040
+#define S_IWGRP 00020
+#define S_IXGRP 00010
+
+#define S_IRWXO 00007
+#define S_IROTH 00004
+#define S_IWOTH 00002
+#define S_IXOTH 00001
 
 #define EXT4_COMBINE_VAL16(hi, lo)  (((uint64_t) hi << 16) | lo)
 #define EXT4_COMBINE_VAL32(hi, lo)  (((uint64_t) hi << 32) | lo)
@@ -300,3 +327,5 @@ typedef struct Ext4CacheNode {
 
 
 bool ext4_init();
+bool ext4_cache_inodes();
+size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t filesize);
