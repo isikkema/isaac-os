@@ -320,17 +320,23 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    Ext4CacheNode* cnode;
+    char* buf;
+    size_t num_read;
 
     if (!ext4_init()) {
         printf("test: ext4_init failed\n");
         return;
     }
 
-    cnode = ext4_get_file("/nest1/nest2/nest3/nest4/nest5/nest6");
-    if (cnode != NULL) {
-        printf("cnode: inum: %2d, size: %5d, name: %.255s\n", cnode->entry.inode, cnode->inode.i_size, cnode->entry.name);
+    buf = kzalloc(50000);
+    num_read = ext4_read_file("/mytextfile.txt", buf, 50000);
+    if (num_read != -1UL) {
+        printf("%s\n", buf);
     }
+
+    printf("num_read: %d\n", num_read);
+
+    kfree(buf);
 }
 
 void random(int argc, char** args) {

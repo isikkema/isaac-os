@@ -335,6 +335,31 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
     return total_read;
 }
 
-// size_t ext4_read_file(char* path, void* buf, size_t count) {
+size_t ext4_read_file(char* path, void* buf, size_t count) {
+    Ext4CacheNode* cnode;
+    Ext4ExtentHeader* extent_header;
+    size_t filesize;
 
-// }
+    if (count == 0) {
+        return 0;
+    }
+
+    cnode = ext4_get_file(path);
+    if (cnode == NULL) {
+        return 0;
+    }
+
+    if (!(cnode->inode.i_flags & EXT4_EXTENTS_FL)) {
+        printf("ext4_read_file: extents must be enabled\n");
+        return 0;
+    }
+
+    filesize = EXT4_COMBINE_VAL32(cnode->inode.i_size_high, cnode->inode.i_size);
+    if (count > filesize) {
+        count = filesize;
+    }
+
+    extent_header = (Ext4ExtentHeader*) cnode->inode.i_block;
+
+    return ext4_read_extent(extent_header, buf, count);
+}
