@@ -13,6 +13,7 @@
 #define EXT3_EXTENT_MAGIC       0xf30a
 #define EXT2_NAME_LEN           255
 #define EXT2_LABEL_LEN          16
+#define EXT4_DET_NAMELEN        0xde00
 
 #define EXT2_BAD_INO             1 /* Bad blocks inode */
 #define EXT2_ROOT_INO            2 /* Root inode */
@@ -328,4 +329,5 @@ typedef struct Ext4CacheNode {
 
 bool ext4_init();
 bool ext4_cache_inodes();
+Ext4CacheNode* ext4_get_file(char* path);
 size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t filesize);

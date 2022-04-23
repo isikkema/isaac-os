@@ -4,6 +4,7 @@
 #include <list.h>
 #include <map.h>
 #include <string.h>
+#include <filepath.h>
 #include <rs_int.h>
 #include <printf.h>
 
@@ -15,16 +16,16 @@
     )                                               \
 )
 
-#define GET_INODE_ADDR(inum)    (                           \
-    GET_BLOCK_ADDR(                                         \
-        EXT4_COMBINE_VAL32(                                 \
-            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]  \
-                .bg_inode_table_hi,                         \
-            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]  \
-                .bg_inode_table                             \
-        )                                               \
-    ) +                                                     \
-    (u64) (inum - 1) * ext4_sb.s_inode_size                       \
+#define GET_INODE_ADDR(inum)    (                                           \
+    GET_BLOCK_ADDR(                                                         \
+        EXT4_COMBINE_VAL32(                                                 \
+            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]            \
+                .bg_inode_table_hi,                                         \
+            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]            \
+                .bg_inode_table                                             \
+        )                                                                   \
+    ) +                                                                     \
+    (u64) ((inum - 1) % ext4_sb.s_inodes_per_group) * ext4_sb.s_inode_size  \
 )
 
 
@@ -72,20 +73,15 @@ bool ext4_init() {
 
 bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* cnode) {
     Ext4ExtentHeader* extent_header;
-    Ext4ExtentIndex* extent_idx;
-    Ext4Extent* extent;
     size_t num_read;
-    size_t total_read;
     size_t size;
     void* buf;
-    u64 offset;
     Ext4DirEntry* dir_entry;
     Ext4DirEntryTail* dir_tail;
     Ext4Inode* inode_ptr;
     Ext4Inode inode;
     Ext4CacheNode* child_cnode;
     bool cached_flag;
-    u32 i;
 
     if (!S_ISDIR(cnode->inode.i_mode)) {
         return false;
@@ -106,6 +102,7 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
     size = EXT4_COMBINE_VAL32(cnode->inode.i_size_high, cnode->inode.i_size);
     buf = kmalloc(size);
 
+    // Read file into buf
     num_read = ext4_read_extent(extent_header, buf, size);
     if (num_read != size) {
         printf("ext4_cache_cnode: ext4_read_extent failed: num_read: %ld\n", num_read);
@@ -153,6 +150,14 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
             list_insert(nodes_to_cache, child_cnode);
             map_insert(inum_to_inode, dir_entry->inode, &child_cnode->inode);
         }
+    }
+
+    dir_tail = (Ext4DirEntryTail*) dir_entry;
+    if (dir_tail->det_reserved_name_len != EXT4_DET_NAMELEN) {
+        printf("ext4_cache_cnode: dir entry tail name len 0x%04x != 0x%04x\n", dir_tail->det_reserved_name_len, EXT4_DET_NAMELEN);
+        
+        kfree(buf);
+        return false;
     }
 
     kfree(buf);
@@ -203,6 +208,60 @@ bool ext4_cache_inodes() {
     map_free(inum_to_inode);
 
     return true;
+}
+
+Ext4CacheNode* ext4_get_file(char* path) {
+    List* path_names;
+    char* name;
+    ListNode* name_it;
+    ListNode* cnode_it;
+    Ext4CacheNode* current_cnode;
+    Ext4CacheNode* tmp_cnode;
+    bool found_flag;
+
+    path_names = filepath_split_path(path);
+    
+    if (strcmp(path_names->head->data, "/") != 0) {
+        printf("ext4_get_file: filepath must be absolute (%s)\n", path);
+
+        list_free_data(path_names);
+        list_free(path_names);
+
+        return NULL;
+    }
+
+    name = path_names->head->data;
+    list_remove(path_names, name);
+    kfree(name);
+
+    current_cnode = ext4_inode_cache;
+    for (name_it = path_names->head; name_it != NULL; name_it = name_it->next) {
+        found_flag = false;
+        name = name_it->data;
+
+        for (cnode_it = current_cnode->children->head; cnode_it != NULL; cnode_it = cnode_it->next) {
+            tmp_cnode = cnode_it->data;
+            if (strcmp(tmp_cnode->entry.name, name_it->data) == 0) {
+                current_cnode = tmp_cnode;
+                found_flag = true;
+                break;
+            }
+        }
+
+        if (!found_flag) {
+            printf("ext4_get_file: no file named (%s) found in path (%s)\n", name, path);
+
+            list_free_data(path_names);
+            list_free(path_names);
+
+            return NULL;
+        }
+    }
+
+    list_free_data(path_names);
+    list_free(path_names);
+
+    return current_cnode;
 }
 
 size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t filesize) {
@@ -276,79 +335,6 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
     return total_read;
 }
 
-// size_t minix3_read_file(char* path, void* buf, size_t count) {
-//     Minix3CacheNode* cnode;
-//     u32 zone;
-//     Minix3ZoneType type;
-//     size_t zone_count;
-//     size_t num_read;
-//     size_t total_read;
-//     u32 i;
+// size_t ext4_read_file(char* path, void* buf, size_t count) {
 
-//     if (count == 0) {
-//         return 0;
-//     }
-
-//     cnode = minix3_get_file(path);
-//     if (cnode == NULL) {
-//         return 0;
-//     }
-
-//     if (count > cnode->inode.size) {
-//         count = cnode->inode.size;
-//     }
-
-//     total_read = 0;
-//     for (i = 0; i < MINIX3_ZONES_PER_INODE; i++) {
-//         zone = cnode->inode.zones[i];
-//         if (zone == 0) {
-//             continue;
-//         }
-
-//         if (i < 7) {
-//             type = Z_DIRECT;
-//         } else if (i == 7) {
-//             type = Z_SINGLY_INDIRECT;
-//         } else if (i == 8) {
-//             type = Z_DOUBLY_INDIRECT;
-//         } else if (i == 9) {
-//             type = Z_TRIPLY_INDIRECT;
-//         }
-
-//         zone_count = 0;
-//         switch (type) {
-//             case Z_DIRECT:
-//                 zone_count = (u64) minix3_sb.block_size;
-//                 break;
-            
-//             case Z_SINGLY_INDIRECT:
-//                 zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size;
-//                 break;
-
-//             case Z_DOUBLY_INDIRECT:
-//                 zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
-//                 break;
-
-//             case Z_TRIPLY_INDIRECT:
-//                 zone_count = (u64) minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size * minix3_sb.block_size;
-//                 break;
-//         }
-
-//         if (count - total_read < zone_count) {
-//             zone_count = count - total_read;
-//         }
-
-//         num_read = minix3_read_zone(zone, type, buf + total_read, zone_count);
-//         if (num_read == -1UL) {
-//             return -1UL;
-//         }
-
-//         total_read += num_read;
-
-//         if (total_read == count) {
-//             break;
-//         }
-//     }
-
-//     return total_read;
 // }

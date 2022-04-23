@@ -98,7 +98,6 @@ typedef enum Minix3ZoneType {
 
 bool minix3_init();
 bool minix3_cache_inodes();
-List* minix3_split_path(char* path);
 Minix3CacheNode* minix3_get_file(char* path);
 size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t count);
 size_t minix3_read_file(char* path, void* buf, size_t count);

@@ -320,9 +320,16 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
+    Ext4CacheNode* cnode;
+
     if (!ext4_init()) {
         printf("test: ext4_init failed\n");
         return;
+    }
+
+    cnode = ext4_get_file("/nest1/nest2/nest3/nest4/nest5/nest6");
+    if (cnode != NULL) {
+        printf("cnode: inum: %2d, size: %5d, name: %.255s\n", cnode->entry.inode, cnode->inode.i_size, cnode->entry.name);
     }
 }
 
