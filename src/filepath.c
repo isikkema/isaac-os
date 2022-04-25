@@ -124,3 +124,62 @@ List* filepath_split_path(char* path) {
 
     return list;
 }
+
+char* filepath_join_paths(List* paths) {
+    List* paths_list;
+    List* path_names;
+    ListNode* it;
+    ListNode* it2;
+    size_t total_size;
+    size_t name_size;
+    char* path;
+
+    paths_list = list_new();
+    for (it = paths->head; it != NULL; it = it->next) {
+        path_names = filepath_split_path(it->data);
+        
+        // If this is not the first path in the list, remove the beginning "/" if it exists
+        if (it != paths->head && strcmp(path_names->head->data, "/") == 0) {
+            kfree(path_names->head->data);
+            list_remove(path_names, path_names->head->data);
+        }
+
+        list_insert(paths_list, path_names);
+    }
+
+    total_size = 0;
+    for (it = paths_list->head; it != NULL; it = it->next) {
+        path_names = it->data;
+
+        for (it2 = path_names->head; it2 != NULL; it2 = it2->next) {
+            if (it != paths_list->head || it2 != path_names->head || strcmp(it2->data, "/") != 0) {
+                total_size += strlen(it2->data) + 1;
+            }
+        }
+    }
+
+    printf("filepath_join_paths: counted %d\n", total_size);
+
+    path = kzalloc(total_size + 1);
+
+    total_size = 0;
+    for (it = paths_list->head; it != NULL; it = it->next) {
+        path_names = it->data;
+
+        for (it2 = path_names->head; it2 != NULL; it2 = it2->next) {
+            if (it != paths_list->head || it2 != path_names->head /* || is_absolute || strcmp(it2->data, "/") != 0 */) {
+                path[total_size] = '/';
+                total_size++;
+            }
+
+            name_size = strlen(it2->data);
+            memcpy(path + total_size, it2->data, name_size);
+
+            total_size += name_size;
+        }
+    }
+
+    printf("filepath_join_paths: copied %d\n", total_size);
+
+    return path;
+}

@@ -20,6 +20,7 @@
 #include <schedule.h>
 #include <minix3.h>
 #include <ext4.h>
+#include <vfs.h>
 
 
 char blocking_getchar() {
@@ -320,23 +321,21 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    char* buf;
-    size_t num_read;
-
-    if (!ext4_init()) {
-        printf("test: ext4_init failed\n");
+    if (!vfs_init()) {
+        printf("test: vfs_init failed\n");
         return;
     }
 
-    buf = kzalloc(50000);
-    num_read = ext4_read_file("/mytextfile.txt", buf, 50000);
-    if (num_read != -1UL) {
-        printf("%s\n", buf);
-    }
+    vfs_mount(virtio_block_device, "/hello/minix");
 
-    printf("num_read: %d\n", num_read);
-
-    kfree(buf);
+    vfs_get_file("bing");
+    vfs_get_file("bing/bong");
+    vfs_get_file("/bing/bong");
+    vfs_get_file("/hello");
+    vfs_get_file("/hello/world");
+    vfs_get_file("/hello/minix");
+    vfs_get_file("/hello/minix/bangus");
+    vfs_get_file("/hello/minix/mytextfile.txt");
 }
 
 void random(int argc, char** args) {

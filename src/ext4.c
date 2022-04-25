@@ -140,8 +140,6 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
         memcpy(child_cnode->entry.name, dir_entry->name, EXT2_NAME_LEN);
         child_cnode->children = list_new();
 
-        printf("ext4_cache_cnode: inum: %4d, size: %d, name: %.255s\n", dir_entry->inode, child_cnode->inode.i_size, dir_entry->name);
-
         // Add new child_cnode to cnode's children list
         list_insert(cnode->children, child_cnode);
 

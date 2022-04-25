@@ -107,8 +107,6 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
             memcpy(child_cnode->entry.name, dir_entry->name, MINIX3_NAME_SIZE);
             child_cnode->children = list_new();
 
-            printf("minix3_cache_cnode: inum: %4d, size: %d, name: %s\n", dir_entry->inode, child_cnode->inode.size, dir_entry->name);
-
             // Add new child_cnode to cnode's children list
             list_insert(cnode->children, child_cnode);
 

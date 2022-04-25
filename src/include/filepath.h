@@ -4,5 +4,6 @@
 #include <list.h>
 
 
-char* minix3_deescape_name(char* name);
+char* filepath_deescape_name(char* name);
 List* filepath_split_path(char* path);
+char* filepath_join_paths(List* paths);
