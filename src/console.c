@@ -328,14 +328,13 @@ void test(int argc, char** args) {
 
     vfs_mount(virtio_block_device, "/hello/minix");
 
-    vfs_get_file("bing");
-    vfs_get_file("bing/bong");
-    vfs_get_file("/bing/bong");
-    vfs_get_file("/hello");
-    vfs_get_file("/hello/world");
-    vfs_get_file("/hello/minix");
-    vfs_get_file("/hello/minix/bangus");
-    vfs_get_file("/hello/minix/mytextfile.txt");
+    char* buf = kzalloc(50000);
+    size_t num_read = vfs_read_file("/hello/minix/mytextfile.txt", buf, 50000);
+    if (num_read != -1UL) {
+        printf("%s\n", buf);
+    }
+
+    printf("num_read: %ld\n", num_read);
 }
 
 void random(int argc, char** args) {

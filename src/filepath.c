@@ -144,7 +144,7 @@ char* filepath_join_paths(List* paths) {
             list_remove(path_names, path_names->head->data);
         }
 
-        list_insert(paths_list, path_names);
+        list_insert_after(paths_list, paths_list->last, path_names);
     }
 
     total_size = 0;
@@ -158,7 +158,7 @@ char* filepath_join_paths(List* paths) {
         }
     }
 
-    printf("filepath_join_paths: counted %d\n", total_size);
+    // printf("filepath_join_paths: counted %d\n", total_size);
 
     path = kzalloc(total_size + 1);
 
@@ -179,7 +179,7 @@ char* filepath_join_paths(List* paths) {
         }
     }
 
-    printf("filepath_join_paths: copied %d\n", total_size);
+    // printf("filepath_join_paths: copied %d\n", total_size);
 
     return path;
 }
