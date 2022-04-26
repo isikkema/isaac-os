@@ -12,7 +12,8 @@
 #include <input.h>
 #include <process.h>
 #include <schedule.h>
-#include <minix3.h>
+#include <vfs.h>
+#include <block.h>
 #include <rs_int.h>
 
 
@@ -85,6 +86,14 @@ int main(int hart) {
         printf("gpu_fill_and_fluh failed\n");
         return 1;
     }
+
+    if (!vfs_init()) {
+        printf("vfs_init failed\n");
+        return 1;
+    }
+
+    vfs_mount(virtio_block_devices->head->data, "/mnt/ext");
+    vfs_mount(virtio_block_devices->head->next->data, "/");
 
     if (!process_init()) {
         printf("process_init failed\n");

@@ -321,21 +321,7 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
-    if (!vfs_init()) {
-        printf("test: vfs_init failed\n");
-        return;
-    }
 
-    vfs_mount(virtio_block_devices->head->data, "/hello/minix/ext");
-    vfs_mount(virtio_block_devices->head->next->data, "/hello/minix");
-
-    char* buf = kzalloc(50000);
-    size_t num_read = vfs_read_file("/hello/minix/mytextfile.txt", buf, 50000);
-    if (num_read != -1UL) {
-        printf("%s\n", buf);
-    }
-
-    printf("num_read: %ld\n", num_read);
 }
 
 void random(int argc, char** args) {
@@ -371,36 +357,39 @@ void random(int argc, char** args) {
 }
 
 void read(int argc, char** args) {
-    void* addr;
+    char* path;
     u32 size;
     u8* data;
     u32 i;
+    size_t num_read;
 
     if (argc < 4) {
-        printf("usage: read bytes|chars <address> <size>\n");
+        printf("usage: read bytes|chars <filepath> <size>\n");
         return;
     }
 
-    addr = (void*) atol(args[2]);
+    path = args[2];
     size = atoi(args[3]);
 
-    data = kmalloc(size);
+    data = kzalloc(size);
 
-    if (!block_read_poll(virtio_block_devices->head->data, data, addr, size)) {
-        printf("block_read failed\n");
+    num_read = vfs_read_file(path, data, size);
+    if (num_read == -1UL) {
+        printf("read: vfs_read_file failed\n");
+        
         kfree(data);
         return;
     }
 
-    for (i = 0; i < size; i++) {
+    for (i = 0; i < num_read; i++) {
         if (strcmp("bytes", args[1]) == 0) {
             printf("%02x ", data[i]);
+
+            if ((i % 64 == 0 && i != 0) || i == size - 1) {
+                printf("\n");
+            }
         } else {
             printf("%c", data[i]);
-        }
-
-        if ((i % 64 == 0 && i != 0) || i == size - 1) {
-            printf("\n");
         }
     }
 
@@ -408,26 +397,26 @@ void read(int argc, char** args) {
 }
 
 void write(int argc, char** args) {
-    void* addr;
-    u32 size;
-    u8* data;
+    // void* addr;
+    // u32 size;
+    // u8* data;
 
-    if (argc < 3) {
-        printf("usage: write <address> <string>\n");
-        return;
-    }
+    // if (argc < 3) {
+    //     printf("usage: write <address> <string>\n");
+    //     return;
+    // }
 
-    addr = (void*) atol(args[1]);
-    size = strlen(args[2]);
+    // addr = (void*) atol(args[1]);
+    // size = strlen(args[2]);
 
-    data = (u8*) args[2];
+    // data = (u8*) args[2];
 
-    if (!block_write_poll(virtio_block_devices->head->data, addr, data, size)) {
-        printf("block_write failed\n");
-        return;
-    }
+    // if (!block_write_poll(virtio_block_devices->head->data, addr, data, size)) {
+    //     printf("block_write failed\n");
+    //     return;
+    // }
 
-    printf("done.\n");
+    printf("write: write is deprecated\n");
 }
 
 void gpu(int argc, char** args) {
