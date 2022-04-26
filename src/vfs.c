@@ -63,23 +63,17 @@ VfsCacheNode* _vfs_get_cnode(char* path, bool create, char* path_left) {
             if (create) {
                 tmp_cnode = kzalloc(sizeof(VfsCacheNode));
                 tmp_cnode->children = list_new();
-                tmp_cnode->name = kmalloc(strlen(name));
+                tmp_cnode->name = kzalloc(strlen(name) + 1);
                 memcpy(tmp_cnode->name, name, strlen(name));
 
                 list_insert(current_cnode->children, tmp_cnode);
                 current_cnode = tmp_cnode;
-
-                // printf("_vfs_get_cnode: Added cnode for \"%s\"\n", name);
             } else {
-                // printf("_vfs_get_cnode: no cnode named (%s) found in path (%s)\n", name, path);
-
                 sub_path_names = list_new();
                 sub_path_names->head = name_it;
                 sub_path_names->last = path_names->last;
 
-                // printf("_vfs_get_cnode: name_it: (%s)\n", name_it->data);
                 tmp = filepath_join_paths(sub_path_names);
-                // printf("_vfs_get_cnode: left: (%s)\n", tmp);
                 memcpy(path_left, tmp, strlen(tmp));
 
                 list_free_data(path_names);
@@ -114,15 +108,18 @@ VfsCacheNode* vfs_mount(VirtioDevice* block_device, char* path) {
         return NULL;
     }
 
-    if (!minix3_init(block_device)) {
-        printf("vfs_mount: minix3_init failed\n");
+    if (minix3_init(block_device)) {
+        cnode->type = NT_MINIX3;
+        cnode->node = minix3_get_file(block_device, "/");
+    } else if (ext4_init(block_device)) {
+        cnode->type = NT_EXT4;
+        cnode->node = ext4_get_file(block_device, "/");
+    } else {
+        printf("vfs_mount: failed to init filesystem\n");
         return NULL;
     }
 
-    // todo: figure out correct type
-    cnode->type = 1;
     cnode->block_device = block_device;
-    cnode->node = minix3_get_file(block_device, "/");
 
     return cnode;
 }
@@ -150,7 +147,7 @@ size_t vfs_read_file(char* path, void* buf, size_t count) {
             break;
         
         case NT_EXT4:
-            num_read = ext4_read_file(path_left, buf, count);
+            num_read = ext4_read_file(cnode->block_device, path_left, buf, count);
             break;
         
         default:

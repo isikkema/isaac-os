@@ -326,7 +326,8 @@ void test(int argc, char** args) {
         return;
     }
 
-    vfs_mount(virtio_block_devices->head->data, "/hello/minix");
+    vfs_mount(virtio_block_devices->head->data, "/hello/minix/ext");
+    vfs_mount(virtio_block_devices->head->next->data, "/hello/minix");
 
     char* buf = kzalloc(50000);
     size_t num_read = vfs_read_file("/hello/minix/mytextfile.txt", buf, 50000);

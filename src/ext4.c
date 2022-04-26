@@ -9,69 +9,88 @@
 #include <printf.h>
 
 
-#define GET_BLOCK_ADDR(block)   (                   \
+#define GET_BLOCK_ADDR(block, sb)   (                   \
     (void*) (                                       \
         EXT4_SUPERBLOCK_OFFSET +                    \
-        (block - 1) * EXT4_GET_BLOCKSIZE(ext4_sb)   \
+        (block - 1) * EXT4_GET_BLOCKSIZE(sb)   \
     )                                               \
 )
 
-#define GET_INODE_ADDR(inum)    (                                           \
+#define GET_INODE_ADDR(inum, sb, groups)    (                                           \
     GET_BLOCK_ADDR(                                                         \
         EXT4_COMBINE_VAL32(                                                 \
-            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]            \
+            groups[(inum - 1) / sb.s_inodes_per_group]            \
                 .bg_inode_table_hi,                                         \
-            ext4_groups[(inum - 1) / ext4_sb.s_inodes_per_group]            \
+            groups[(inum - 1) / sb.s_inodes_per_group]            \
                 .bg_inode_table                                             \
-        )                                                                   \
+        ),                                                                   \
+        sb                                                                   \
     ) +                                                                     \
-    (u64) ((inum - 1) % ext4_sb.s_inodes_per_group) * ext4_sb.s_inode_size  \
+    (u64) ((inum - 1) % sb.s_inodes_per_group) * sb.s_inode_size  \
 )
 
 
-Ext4SuperBlock ext4_sb;
-Ext4GroupDesc* ext4_groups;
-Ext4CacheNode* ext4_inode_cache;
+Map* ext4_superblocks;
+Map* ext4_groups_map;
+Map* ext4_inode_caches;
 
 
-bool ext4_init() {
+bool ext4_init(VirtioDevice* block_device) {
+    Ext4SuperBlock* ext4_sb;
+    Ext4GroupDesc* ext4_groups;
     u32 num_groups;
 
-    if (!block_read_poll(virtio_block_devices->head->data, &ext4_sb, (void*) EXT4_SUPERBLOCK_OFFSET, sizeof(Ext4SuperBlock))) {
+    ext4_sb = kmalloc(sizeof(Ext4SuperBlock));
+
+    if (!block_read_poll(block_device, ext4_sb, (void*) EXT4_SUPERBLOCK_OFFSET, sizeof(Ext4SuperBlock))) {
         printf("ext4_init: superblock read failed\n");
+
+        kfree(ext4_sb);
         return false;
     }
 
-    if (ext4_sb.s_magic != EXT4_MAGIC) {
-        printf("ext4_init: magic 0x%04x != 0x%04x\n", ext4_sb.s_magic, EXT4_MAGIC);
+    if (ext4_sb->s_magic != EXT4_MAGIC) {
+        kfree(ext4_sb);
         return false;
     }
 
     num_groups = 
-        (EXT4_COMBINE_VAL32(ext4_sb.s_blocks_count_hi, ext4_sb.s_blocks_count) - 1) /
-        ext4_sb.s_blocks_per_group +
+        (EXT4_COMBINE_VAL32(ext4_sb->s_blocks_count_hi, ext4_sb->s_blocks_count) - 1) /
+        ext4_sb->s_blocks_per_group +
         1;
 
     ext4_groups = kmalloc(sizeof(Ext4GroupDesc) * num_groups);
-    if (!block_read_poll(virtio_block_devices->head->data, ext4_groups, (void*) EXT4_SUPERBLOCK_OFFSET + sizeof(Ext4SuperBlock), sizeof(Ext4GroupDesc) * num_groups)) {
+    if (!block_read_poll(block_device, ext4_groups, (void*) EXT4_SUPERBLOCK_OFFSET + sizeof(Ext4SuperBlock), sizeof(Ext4GroupDesc) * num_groups)) {
         printf("ext4_init: groups read failed\n");
         
         kfree(ext4_groups);
-        ext4_groups = NULL;
+        kfree(ext4_sb);
         return false;
     }
 
-    if (!ext4_cache_inodes()) {
+    ext4_superblocks = map_new();
+    ext4_groups_map = map_new();
+    ext4_inode_caches = map_new();
+
+    map_insert(ext4_superblocks, (u64) block_device, ext4_sb);
+    map_insert(ext4_groups_map, (u64) block_device, ext4_groups);
+
+    if (!ext4_cache_inodes(block_device)) {
         printf("ext4_cache_inodes failed\n");
 
+        kfree(ext4_sb);
         kfree(ext4_groups);
+        map_free(ext4_superblocks);
+        map_free(ext4_groups_map);
+        map_free(ext4_inode_caches);
+
         return false;
     }
 
     return true;
 }
 
-bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* cnode) {
+bool ext4_cache_cnode(VirtioDevice* block_device, List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* cnode) {
     Ext4ExtentHeader* extent_header;
     size_t num_read;
     size_t size;
@@ -82,6 +101,9 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
     Ext4Inode inode;
     Ext4CacheNode* child_cnode;
     bool cached_flag;
+    Ext4SuperBlock* sb_ptr;
+    Ext4SuperBlock ext4_sb;
+    Ext4GroupDesc* ext4_groups;
 
     if (!S_ISDIR(cnode->inode.i_mode)) {
         return false;
@@ -99,11 +121,25 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
         return false;
     }
 
+    sb_ptr = map_get(ext4_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("ext4_cache_cnode: no superblock for block device 0x%08lx\n", (u64) block_device);
+        return false;
+    }
+
+    ext4_sb = *sb_ptr;
+
+    ext4_groups = map_get(ext4_groups_map, (u64) block_device);
+    if (ext4_groups == NULL) {
+        printf("ext4_cache_cnode: no groups for block device 0x%08lx\n", (u64) block_device);
+        return false;
+    }
+
     size = EXT4_COMBINE_VAL32(cnode->inode.i_size_high, cnode->inode.i_size);
     buf = kmalloc(size);
 
     // Read file into buf
-    num_read = ext4_read_extent(extent_header, buf, size);
+    num_read = ext4_read_extent(block_device, extent_header, buf, size);
     if (num_read != size) {
         printf("ext4_cache_cnode: ext4_read_extent failed: num_read: %ld\n", num_read);
         
@@ -124,7 +160,7 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
             cached_flag = false;
 
             inode_ptr = &inode;
-            if (!block_read_poll(virtio_block_devices->head->data, inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Ext4Inode))) {
+            if (!block_read_poll(block_device, inode_ptr, GET_INODE_ADDR(dir_entry->inode, ext4_sb, ext4_groups), sizeof(Ext4Inode))) {
                 printf("ext4_cache_cnode: inode read failed\n");
                 return false;
             }
@@ -162,14 +198,31 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
     return true;
 }
 
-bool ext4_cache_inodes() {
+bool ext4_cache_inodes(VirtioDevice* block_device) {
     Ext4Inode inode;
     Ext4CacheNode* cnode;
     List* nodes_to_cache;
     Map* inum_to_inode;
+    Ext4SuperBlock* sb_ptr;
+    Ext4SuperBlock ext4_sb;
+    Ext4GroupDesc* ext4_groups;
+
+    sb_ptr = map_get(ext4_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("ext4_cache_inodes: no superblock for block device 0x%08lx\n", (u64) block_device);
+        return false;
+    }
+
+    ext4_sb = *sb_ptr;
+
+    ext4_groups = map_get(ext4_groups_map, (u64) block_device);
+    if (ext4_groups == NULL) {
+        printf("ext4_cache_inodes: no groups for block device 0x%08lx\n", (u64) block_device);
+        return false;
+    }
 
     // Read root inode from disk
-    if (!block_read_poll(virtio_block_devices->head->data, &inode, GET_INODE_ADDR(EXT2_ROOT_INO), sizeof(Ext4Inode))) {
+    if (!block_read_poll(block_device, &inode, GET_INODE_ADDR(EXT2_ROOT_INO, ext4_sb, ext4_groups), sizeof(Ext4Inode))) {
         printf("ext4_cache_inodes: root inode read failed\n");
         return false;
     }
@@ -188,7 +241,7 @@ bool ext4_cache_inodes() {
     memcpy(cnode->entry.name, "/", strlen("/"));
     cnode->children = list_new();
 
-    ext4_inode_cache = cnode;
+    map_insert(ext4_inode_caches, (u64) block_device, cnode);
 
     // Add root to data structures
     list_insert(nodes_to_cache, cnode);
@@ -199,7 +252,7 @@ bool ext4_cache_inodes() {
         cnode = nodes_to_cache->head->data;
         list_remove(nodes_to_cache, cnode);
 
-        ext4_cache_cnode(nodes_to_cache, inum_to_inode, cnode);
+        ext4_cache_cnode(block_device, nodes_to_cache, inum_to_inode, cnode);
     }
 
     list_free(nodes_to_cache);
@@ -208,7 +261,7 @@ bool ext4_cache_inodes() {
     return true;
 }
 
-Ext4CacheNode* ext4_get_file(char* path) {
+Ext4CacheNode* ext4_get_file(VirtioDevice* block_device, char* path) {
     List* path_names;
     char* name;
     ListNode* name_it;
@@ -216,6 +269,12 @@ Ext4CacheNode* ext4_get_file(char* path) {
     Ext4CacheNode* current_cnode;
     Ext4CacheNode* tmp_cnode;
     bool found_flag;
+
+    current_cnode = map_get(ext4_inode_caches, (u64) block_device);
+    if (current_cnode == NULL) {
+        printf("ext4_get_file: no root cnode for block device: 0x%08lx\n", (u64) block_device);
+        return NULL;
+    }
 
     path_names = filepath_split_path(path);
     
@@ -232,7 +291,6 @@ Ext4CacheNode* ext4_get_file(char* path) {
     list_remove(path_names, name);
     kfree(name);
 
-    current_cnode = ext4_inode_cache;
     for (name_it = path_names->head; name_it != NULL; name_it = name_it->next) {
         found_flag = false;
         name = name_it->data;
@@ -262,7 +320,7 @@ Ext4CacheNode* ext4_get_file(char* path) {
     return current_cnode;
 }
 
-size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t filesize) {
+size_t ext4_read_extent(VirtioDevice* block_device, Ext4ExtentHeader* extent_header, void* buf, size_t filesize) {
     Ext4Extent* extent;
     Ext4ExtentIndex* extent_index;
     size_t count;
@@ -272,6 +330,16 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
     Ext4ExtentHeader* block;
     void* block_addr;
     u32 i;
+    Ext4SuperBlock* sb_ptr;
+    Ext4SuperBlock ext4_sb;
+
+    sb_ptr = map_get(ext4_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("ext4_read_extent: no superblock for block device: 0x%08lx\n", (u64) block_device);
+        return -1UL;
+    }
+
+    ext4_sb = *sb_ptr;
 
     total_read = 0;
 
@@ -280,7 +348,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
         for (i = 0; i < extent_header->eh_entries; i++) {
             extent = (void*) extent_header + sizeof(Ext4ExtentHeader) + i * sizeof(Ext4Extent);
 
-            block_addr = GET_BLOCK_ADDR(EXT4_COMBINE_VAL32(extent->ee_start_hi, extent->ee_start));
+            block_addr = GET_BLOCK_ADDR(EXT4_COMBINE_VAL32(extent->ee_start_hi, extent->ee_start), ext4_sb);
 
             offset = extent->ee_block * EXT4_GET_BLOCKSIZE(ext4_sb);
             count = extent->ee_len * EXT4_GET_BLOCKSIZE(ext4_sb);
@@ -288,7 +356,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
                 count = filesize - offset;
             }
 
-            if (!block_read_poll(virtio_block_devices->head->data, buf + offset, block_addr, count)) {
+            if (!block_read_poll(block_device, buf + offset, block_addr, count)) {
                 printf("ext4_read_extent: extent leaf read failed\n");
                 return -1UL;
             }
@@ -304,9 +372,9 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
     for (i = 0; i < extent_header->eh_entries; i++) {
         extent_index = (void*) extent_header + sizeof(Ext4ExtentHeader) + i * sizeof(Ext4ExtentIndex);
 
-        block_addr = GET_BLOCK_ADDR(EXT4_COMBINE_VAL32(extent_index->ei_leaf_hi, extent_index->ei_leaf));
+        block_addr = GET_BLOCK_ADDR(EXT4_COMBINE_VAL32(extent_index->ei_leaf_hi, extent_index->ei_leaf), ext4_sb);
 
-        if (!block_read_poll(virtio_block_devices->head->data, block, block_addr, count)) {
+        if (!block_read_poll(block_device, block, block_addr, count)) {
             printf("ext4_read_extent: extent index read failed\n");
 
             kfree(block);
@@ -320,7 +388,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
             return -1UL;
         }
 
-        num_read = ext4_read_extent(block, buf, filesize);
+        num_read = ext4_read_extent(block_device, block, buf, filesize);
         if (num_read == -1UL) {
             kfree(block);
             return -1UL;
@@ -333,7 +401,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
     return total_read;
 }
 
-size_t ext4_read_file(char* path, void* buf, size_t count) {
+size_t ext4_read_file(VirtioDevice* block_device, char* path, void* buf, size_t count) {
     Ext4CacheNode* cnode;
     Ext4ExtentHeader* extent_header;
     size_t filesize;
@@ -342,7 +410,7 @@ size_t ext4_read_file(char* path, void* buf, size_t count) {
         return 0;
     }
 
-    cnode = ext4_get_file(path);
+    cnode = ext4_get_file(block_device, path);
     if (cnode == NULL) {
         return 0;
     }
@@ -359,5 +427,5 @@ size_t ext4_read_file(char* path, void* buf, size_t count) {
 
     extent_header = (Ext4ExtentHeader*) cnode->inode.i_block;
 
-    return ext4_read_extent(extent_header, buf, count);
+    return ext4_read_extent(block_device, extent_header, buf, count);
 }

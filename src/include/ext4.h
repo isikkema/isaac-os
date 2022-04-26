@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <list.h>
+#include <virtio.h>
+
 
 #define EXT4_MAGIC              0xef53
 #define EXT4_SUPERBLOCK_OFFSET  1024UL
@@ -327,8 +329,8 @@ typedef struct Ext4CacheNode {
 } Ext4CacheNode;
 
 
-bool ext4_init();
-bool ext4_cache_inodes();
-Ext4CacheNode* ext4_get_file(char* path);
-size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t filesize);
-size_t ext4_read_file(char* path, void* buf, size_t count);
+bool ext4_init(VirtioDevice* block_device);
+bool ext4_cache_inodes(VirtioDevice* block_device);
+Ext4CacheNode* ext4_get_file(VirtioDevice* block_device, char* path);
+size_t ext4_read_extent(VirtioDevice* block_device, Ext4ExtentHeader* extent_header, void* buf, size_t filesize);
+size_t ext4_read_file(VirtioDevice* block_device, char* path, void* buf, size_t count);

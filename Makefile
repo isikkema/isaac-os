@@ -18,9 +18,11 @@ QEMU_DEVICES+= -device virtio-tablet,bus=rp1,id=tablet
 QEMU_DEVICES+= -device virtio-keyboard,bus=rp1,id=keyboard
 QEMU_DEVICES+= -device virtio-gpu-pci,bus=rp2,id=gpu
 QEMU_DEVICES+= -device virtio-rng-pci-non-transitional,bus=rp1,id=rng
-QEMU_DEVICES+= -device virtio-blk-pci-non-transitional,drive=foo,bus=rp2,id=blk
+QEMU_DEVICES+= -device virtio-blk-pci-non-transitional,drive=foo0,bus=rp2,id=blk0
+QEMU_DEVICES+= -device virtio-blk-pci-non-transitional,drive=foo1,bus=rp2,id=blk1
 QEMU_DEVICES+= -device qemu-xhci,bus=rp3,id=usbhost
-QEMU_DEVICES+= -drive if=none,format=raw,file=hdd.dsk,id=foo
+QEMU_DEVICES+= -drive if=none,format=raw,file=hdd0.dsk,id=foo0
+QEMU_DEVICES+= -drive if=none,format=raw,file=hdd1.dsk,id=foo1
 
 all: cosc562.elf
 

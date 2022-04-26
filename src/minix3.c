@@ -35,11 +35,12 @@ bool minix3_init(VirtioDevice* block_device) {
 
     if (!block_read_poll(block_device, sb, (void*) MINIX3_SUPERBLOCK_OFFSET, sizeof(Minix3SuperBlock))) {
         printf("minix3_init: superblock read failed\n");
+        kfree(sb);
         return false;
     }
 
     if (sb->magic != MINIX3_MAGIC) {
-        printf("minix3_init: invalid magic: 0x%04x != 0x%04x\n", sb->magic, MINIX3_MAGIC);
+        kfree(sb);
         return false;
     }
 
@@ -50,6 +51,11 @@ bool minix3_init(VirtioDevice* block_device) {
 
     if (!minix3_cache_inodes(block_device)) {
         printf("minix3_init: minix3_cache_inodes failed\n");
+
+        kfree(sb);
+        map_free(minix3_superblocks);
+        map_free(minix3_inode_caches);
+
         return false;
     }
 
