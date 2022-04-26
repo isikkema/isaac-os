@@ -31,7 +31,7 @@ bool virtio_rng_driver(volatile EcamHeader* ecam) {
 }
 
 
-void rng_handle_irq() {
+void rng_handle_irq(VirtioDevice* virtio_rng_device) {
     u16 ack_idx;
     u16 queue_size;
     u32 id;

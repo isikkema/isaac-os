@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <virtio.h>
 #include <pci.h>
+#include <list.h>
 
 
 #define VIRTIO_BLK_T_IN             0
@@ -75,16 +76,16 @@ typedef volatile struct virtio_block_request_info {
 } VirtioBlockRequestInfo;
 
 
-extern VirtioDevice* virtio_block_device;
+extern List* virtio_block_devices;
 
 
 bool virtio_block_driver(volatile EcamHeader* ecam);
 
-void block_handle_irq();
+void block_handle_irq(VirtioDevice* block_Device);
 
-bool block_read(void* dst, void* src, uint32_t size);
-bool block_write(void* dst, void* src, uint32_t size);
-bool block_flush(void* addr);
-bool block_read_poll(void* dst, void* src, uint32_t size);
-bool block_write_poll(void* dst, void* src, uint32_t size);
-bool block_flush_poll(void* addr);
+bool block_read(VirtioDevice* block_Device, void* dst, void* src, uint32_t size);
+bool block_write(VirtioDevice* block_Device, void* dst, void* src, uint32_t size);
+bool block_flush(VirtioDevice* block_Device, void* addr);
+bool block_read_poll(VirtioDevice* block_Device, void* dst, void* src, uint32_t size);
+bool block_write_poll(VirtioDevice* block_Device, void* dst, void* src, uint32_t size);
+bool block_flush_poll(VirtioDevice* block_Device, void* addr);

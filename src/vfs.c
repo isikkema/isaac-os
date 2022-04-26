@@ -114,7 +114,7 @@ VfsCacheNode* vfs_mount(VirtioDevice* block_device, char* path) {
         return NULL;
     }
 
-    if (!minix3_init()) {
+    if (!minix3_init(block_device)) {
         printf("vfs_mount: minix3_init failed\n");
         return NULL;
     }
@@ -122,7 +122,7 @@ VfsCacheNode* vfs_mount(VirtioDevice* block_device, char* path) {
     // todo: figure out correct type
     cnode->type = 1;
     cnode->block_device = block_device;
-    cnode->node = minix3_get_file("/");
+    cnode->node = minix3_get_file(block_device, "/");
 
     return cnode;
 }
@@ -146,7 +146,7 @@ size_t vfs_read_file(char* path, void* buf, size_t count) {
 
     switch (cnode->type) {
         case NT_MINIX3:
-            num_read = minix3_read_file(path_left, buf, count);
+            num_read = minix3_read_file(cnode->block_device, path_left, buf, count);
             break;
         
         case NT_EXT4:

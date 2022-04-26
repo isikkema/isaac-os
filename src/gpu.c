@@ -32,7 +32,7 @@ bool virtio_gpu_driver(volatile EcamHeader* ecam) {
 }
 
 
-void gpu_handle_irq() {
+void gpu_handle_irq(VirtioDevice* virtio_gpu_device) {
     u16 ack_idx;
     u16 queue_size;
     u32 id;

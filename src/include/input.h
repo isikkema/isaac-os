@@ -76,7 +76,6 @@ extern VirtioInputEventRingBuffer virtio_input_event_ring_buffer;
 
 bool virtio_input_driver(volatile EcamHeader* ecam);
 
-void input_handle_irq();
 void input_keyboard_handle_irq();
 void input_tablet_handle_irq();
 

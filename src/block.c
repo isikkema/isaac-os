@@ -10,7 +10,7 @@
 #include <csr.h>
 
 
-VirtioDevice* virtio_block_device;
+List* virtio_block_devices;
 
 
 bool virtio_block_driver(volatile EcamHeader* ecam) {
@@ -24,14 +24,18 @@ bool virtio_block_driver(volatile EcamHeader* ecam) {
     device->request_info = kzalloc(sizeof(void*) * device->cfg->queue_size);
     device->handle_irq = block_handle_irq;
     device->enabled = true;
-    virtio_block_device = device;
+    if (virtio_block_devices == NULL) {
+        virtio_block_devices = list_new();
+    }
+
+    list_insert(virtio_block_devices, device);
     virtio_add_device(device);
 
     return rv;
 }
 
 
-void block_handle_irq() {
+void block_handle_irq(VirtioDevice* block_device) {
     u16 ack_idx;
     u16 queue_size;
     u32 id;
@@ -40,14 +44,14 @@ void block_handle_irq() {
     VirtioBlockDescStatus* desc_status;
     volatile VirtioBlockDeviceCapability* device_cfg;
 
-    queue_size = virtio_block_device->cfg->queue_size;
+    queue_size = block_device->cfg->queue_size;
 
-    while (virtio_block_device->ack_idx != virtio_block_device->queue_device->idx) {
-        ack_idx = virtio_block_device->ack_idx;
+    while (block_device->ack_idx != block_device->queue_device->idx) {
+        ack_idx = block_device->ack_idx;
 
-        id = virtio_block_device->queue_device->ring[ack_idx % queue_size].id % queue_size;
+        id = block_device->queue_device->ring[ack_idx % queue_size].id % queue_size;
     
-        req_info = virtio_block_device->request_info[id];
+        req_info = block_device->request_info[id];
         desc_header = req_info->desc_header;
         desc_status = req_info->desc_status;
 
@@ -55,7 +59,7 @@ void block_handle_irq() {
             printf("block_handle_irq: block: non-OK status: %d, idx: %d\n", desc_status->status, id);
         } else if (desc_header->type == VIRTIO_BLK_T_IN) {  // If read request
             // Copy exact chunk needed from buffer to dst
-            device_cfg = virtio_block_device->device_cfg;
+            device_cfg = block_device->device_cfg;
 
             memcpy(req_info->dst, req_info->data + ((u64) req_info->src % device_cfg->blk_size), req_info->size);
         }
@@ -74,12 +78,12 @@ void block_handle_irq() {
         kfree(desc_header);
         kfree(desc_status);
 
-        virtio_block_device->ack_idx++;
+        block_device->ack_idx++;
     }
 };
 
 
-bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock, bool poll) {
+bool block_request(VirtioDevice* block_device, uint16_t type, void* dst, void* src, uint32_t size, bool lock, bool poll) {
     u32 at_idx;
     u32 first_idx;
     u32 next_idx;
@@ -95,15 +99,16 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     u8* data;
     VirtioBlockRequestInfo* request_info;
 
-    if (!virtio_block_device->enabled) {
+    if (!block_device->enabled) {
+        printf("block_request: block device not enabled\n");
         return false;
     }
 
     if (lock) {
-        mutex_sbi_lock(&virtio_block_device->lock);
+        mutex_sbi_lock(&block_device->lock);
     }
 
-    cfg = virtio_block_device->device_cfg;
+    cfg = block_device->device_cfg;
 
     if (type == VIRTIO_BLK_T_IN) {
         low_sector = (u64) src / cfg->blk_size;
@@ -133,7 +138,7 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
             // but that's more complicated.
 
             // Don't lock because this should count as part of the same request.
-            if (!block_request(VIRTIO_BLK_T_IN, data, (void*) ((u64) low_sector * cfg->blk_size), aligned_size, false, true)) {
+            if (!block_request(block_device, VIRTIO_BLK_T_IN, data, (void*) ((u64) low_sector * cfg->blk_size), aligned_size, false, true)) {
                 printf("block_request: block_read failed\n");
             }
 
@@ -146,43 +151,43 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     desc_status = kzalloc(sizeof(VirtioBlockDescStatus));
     desc_status->status = VIRTIO_BLK_S_INCOMP;
 
-    at_idx = virtio_block_device->at_idx;
+    at_idx = block_device->at_idx;
     first_idx = at_idx;
-    queue_size = virtio_block_device->cfg->queue_size;
+    queue_size = block_device->cfg->queue_size;
 
     // Add descriptors to queue
     // DESCRIPTOR 1
-    virtio_block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_header);
-    virtio_block_device->queue_desc[at_idx].len = sizeof(VirtioBlockDescHeader);
-    virtio_block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
+    block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_header);
+    block_device->queue_desc[at_idx].len = sizeof(VirtioBlockDescHeader);
+    block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
 
     // Increment at_idx and set next to the incremented at_idx
     next_idx = (at_idx + 1) % queue_size;
-    virtio_block_device->queue_desc[at_idx].next = next_idx;
+    block_device->queue_desc[at_idx].next = next_idx;
     at_idx = next_idx;
 
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
         // DESCRIPTOR 2
-        virtio_block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_data);
-        virtio_block_device->queue_desc[at_idx].len = aligned_size;
-        virtio_block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
+        block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_data);
+        block_device->queue_desc[at_idx].len = aligned_size;
+        block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_NEXT;
         if (type == VIRTIO_BLK_T_IN) {
-            virtio_block_device->queue_desc[at_idx].flags |= VIRT_QUEUE_DESC_FLAG_WRITE;
+            block_device->queue_desc[at_idx].flags |= VIRT_QUEUE_DESC_FLAG_WRITE;
         }
 
         next_idx = (at_idx + 1) % queue_size;
-        virtio_block_device->queue_desc[at_idx].next = next_idx;
+        block_device->queue_desc[at_idx].next = next_idx;
         at_idx = next_idx;
     }
 
     // DESCRIPTOR 3
-    virtio_block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_status);
-    virtio_block_device->queue_desc[at_idx].len = sizeof(VirtioBlockDescStatus);
-    virtio_block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
-    virtio_block_device->queue_desc[at_idx].next = 0;
+    block_device->queue_desc[at_idx].addr = mmu_translate(kernel_mmu_table, (u64) desc_status);
+    block_device->queue_desc[at_idx].len = sizeof(VirtioBlockDescStatus);
+    block_device->queue_desc[at_idx].flags = VIRT_QUEUE_DESC_FLAG_WRITE;
+    block_device->queue_desc[at_idx].next = 0;
 
     // Add descriptor to driver ring
-    virtio_block_device->queue_driver->ring[virtio_block_device->queue_driver->idx % queue_size] = first_idx;
+    block_device->queue_driver->ring[block_device->queue_driver->idx % queue_size] = first_idx;
 
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
         // Add request info for later use in driver
@@ -196,26 +201,26 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
         request_info->desc_status = desc_status;
         request_info->poll = poll;
         request_info->complete = false;
-        virtio_block_device->request_info[first_idx] = (void*) request_info;
+        block_device->request_info[first_idx] = (void*) request_info;
     }
 
     // Increment indices
     at_idx = (at_idx + 1) % queue_size;
-    virtio_block_device->at_idx = at_idx;
+    block_device->at_idx = at_idx;
 
-    virtio_block_device->queue_driver->idx += 1;
+    block_device->queue_driver->idx += 1;
 
     // Notify
     notify_ptr = (u32*) BAR_NOTIFY_CAP(
-        virtio_block_device->base_notify_offset,
-        virtio_block_device->cfg->queue_notify_off,
-        virtio_block_device->notify->notify_off_multiplier
+        block_device->base_notify_offset,
+        block_device->cfg->queue_notify_off,
+        block_device->notify->notify_off_multiplier
     );
     
     *notify_ptr = 0;
 
     if (lock) {
-        mutex_unlock(&virtio_block_device->lock);
+        mutex_unlock(&block_device->lock);
     }
 
     if (poll) {
@@ -229,26 +234,26 @@ bool block_request(uint16_t type, void* dst, void* src, uint32_t size, bool lock
     return true;
 }
 
-bool block_read(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_IN, dst, src, size, true, false);
+bool block_read(VirtioDevice* block_Device, void* dst, void* src, uint32_t size) {
+    return block_request(block_Device, VIRTIO_BLK_T_IN, dst, src, size, true, false);
 }
 
-bool block_write(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_OUT, dst, src, size, true, false);
+bool block_write(VirtioDevice* block_Device, void* dst, void* src, uint32_t size) {
+    return block_request(block_Device, VIRTIO_BLK_T_OUT, dst, src, size, true, false);
 }
 
-bool block_flush(void* addr) {
-    return block_request(VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, false);
+bool block_flush(VirtioDevice* block_Device, void* addr) {
+    return block_request(block_Device, VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, false);
 }
 
-bool block_read_poll(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_IN, dst, src, size, true, true);
+bool block_read_poll(VirtioDevice* block_Device, void* dst, void* src, uint32_t size) {
+    return block_request(block_Device, VIRTIO_BLK_T_IN, dst, src, size, true, true);
 }
 
-bool block_write_poll(void* dst, void* src, uint32_t size) {
-    return block_request(VIRTIO_BLK_T_OUT, dst, src, size, true, true);
+bool block_write_poll(VirtioDevice* block_Device, void* dst, void* src, uint32_t size) {
+    return block_request(block_Device, VIRTIO_BLK_T_OUT, dst, src, size, true, true);
 }
 
-bool block_flush_poll(void* addr) {
-    return block_request(VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, true);
+bool block_flush_poll(VirtioDevice* block_Device, void* addr) {
+    return block_request(block_Device, VIRTIO_BLK_T_FLUSH, addr, NULL, 0, true, true);
 }

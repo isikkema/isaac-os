@@ -173,7 +173,7 @@ extern VirtioDevice* virtio_gpu_device;
 
 bool virtio_gpu_driver(volatile EcamHeader* ecam);
 
-void gpu_handle_irq();
+void gpu_handle_irq(VirtioDevice* virtio_gpu_device);
 
 bool gpu_get_display_info();
 uint32_t gpu_resource_create_2d(VirtioGpuFormats format, uint32_t width, uint32_t height);

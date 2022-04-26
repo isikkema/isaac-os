@@ -100,7 +100,7 @@ bool virtio_input_driver(volatile EcamHeader* ecam) {
 }
 
 
-void input_keyboard_handle_irq() {
+void input_keyboard_handle_irq(VirtioDevice* virtio_input_keyboard_device) {
     VirtioInputDeviceInfo* keyboard_info;
     u16 ack_idx;
     u16 queue_size;
@@ -125,7 +125,7 @@ void input_keyboard_handle_irq() {
     }
 }
 
-void input_tablet_handle_irq() {
+void input_tablet_handle_irq(VirtioDevice* virtio_input_tablet_device) {
     VirtioInputDeviceInfo* handle_info;
     u16 ack_idx;
     u16 queue_size;

@@ -9,37 +9,46 @@
 #include <printf.h>
 
 
-Minix3SuperBlock minix3_sb;
-Minix3CacheNode* minix3_inode_cache;
+Map* minix3_superblocks;
+Map* minix3_inode_caches;
 
 
-#define GET_INODE_ADDR(inum) (                  \
+#define GET_INODE_ADDR(inum, sb) (                  \
     (Minix3Inode*) (                                  \
         MINIX3_SUPERBLOCK_OFFSET +              \
-        (u64) minix3_sb.block_size +                   \
-        (u64) minix3_sb.imap_blocks * minix3_sb.block_size +  \
-        (u64) minix3_sb.zmap_blocks * minix3_sb.block_size +  \
+        (u64) sb.block_size +                   \
+        (u64) sb.imap_blocks * sb.block_size +  \
+        (u64) sb.zmap_blocks * sb.block_size +  \
         (inum - 1) * sizeof(Minix3Inode)              \
     )                                           \
 )
 
-#define GET_ZONE_ADDR(zone) (               \
-    (void*) ((u64) zone * minix3_sb.block_size)    \
+#define GET_ZONE_ADDR(zone, sb) (               \
+    (void*) ((u64) zone * sb.block_size)    \
 )
 
 
-bool minix3_init() {
-    if (!block_read_poll(&minix3_sb, (void*) MINIX3_SUPERBLOCK_OFFSET, sizeof(Minix3SuperBlock))) {
+bool minix3_init(VirtioDevice* block_device) {
+    Minix3SuperBlock* sb;
+
+    sb = kmalloc(sizeof(Minix3SuperBlock));
+
+    if (!block_read_poll(block_device, sb, (void*) MINIX3_SUPERBLOCK_OFFSET, sizeof(Minix3SuperBlock))) {
         printf("minix3_init: superblock read failed\n");
         return false;
     }
 
-    if (minix3_sb.magic != MINIX3_MAGIC) {
-        printf("minix3_init: invalid magic: 0x%04x != 0x%04x\n", minix3_sb.magic, MINIX3_MAGIC);
+    if (sb->magic != MINIX3_MAGIC) {
+        printf("minix3_init: invalid magic: 0x%04x != 0x%04x\n", sb->magic, MINIX3_MAGIC);
         return false;
     }
 
-    if (!minix3_cache_inodes()) {
+    minix3_superblocks = map_new();
+    minix3_inode_caches = map_new();
+
+    map_insert(minix3_superblocks, (u64) block_device, sb);
+
+    if (!minix3_cache_inodes(block_device)) {
         printf("minix3_init: minix3_cache_inodes failed\n");
         return false;
     }
@@ -47,7 +56,9 @@ bool minix3_init() {
     return true;
 }
 
-bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNode* cnode) {
+bool minix3_cache_cnode(VirtioDevice* block_device, List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNode* cnode) {
+    Minix3SuperBlock* sb_ptr;
+    Minix3SuperBlock minix3_sb;
     Minix3CacheNode* child_cnode;
     Minix3Inode inode;
     Minix3Inode* inode_ptr;
@@ -62,6 +73,14 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
         return false;
     }
 
+    sb_ptr = map_get(minix3_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("minix3_cache_cnode: no superblock for block device: 0x%08lx\n", (u64) block_device);
+        return false;
+    }
+
+    minix3_sb = *sb_ptr;
+
     block = kzalloc(minix3_sb.block_size);
 
     for (i = 0; i < MINIX3_ZONES_PER_INODE; i++) {
@@ -71,7 +90,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
         }
 
         // Read DirEntries into block
-        num_read = minix3_read_zone(zone, Z_DIRECT, block, minix3_sb.block_size);
+        num_read = minix3_read_zone(block_device, zone, Z_DIRECT, block, minix3_sb.block_size);
         if (num_read != minix3_sb.block_size) {
             printf("minix3_init: zone %d read failed\n", zone);
             kfree(block);
@@ -91,7 +110,7 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
                 cached_flag = false;
 
                 inode_ptr = &inode;
-                if (!block_read_poll(inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Minix3Inode))) {
+                if (!block_read_poll(block_device, inode_ptr, GET_INODE_ADDR(dir_entry->inode, minix3_sb), sizeof(Minix3Inode))) {
                     printf("minix3_init: root inode read failed\n");
                     return false;
                 }
@@ -122,14 +141,24 @@ bool minix3_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Minix3CacheNod
     return true;
 }
 
-bool minix3_cache_inodes() {
+bool minix3_cache_inodes(VirtioDevice* block_device) {
+    Minix3SuperBlock* sb_ptr;
+    Minix3SuperBlock minix3_sb;
     Minix3Inode inode;
     Minix3CacheNode* cnode;
     List* nodes_to_cache;
     Map* inum_to_inode;
 
+    sb_ptr = map_get(minix3_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("minix3_cache_cnode: no superblock for block device: 0x%08lx\n", (u64) block_device);
+        return false;
+    }
+
+    minix3_sb = *sb_ptr;
+
     // Read root inode from disk
-    if (!block_read_poll(&inode, GET_INODE_ADDR(MINIX3_ROOT_INODE), sizeof(Minix3Inode))) {
+    if (!block_read_poll(block_device, &inode, GET_INODE_ADDR(MINIX3_ROOT_INODE, minix3_sb), sizeof(Minix3Inode))) {
         printf("minix3_init: root inode read failed\n");
         return false;
     }
@@ -148,7 +177,7 @@ bool minix3_cache_inodes() {
     memcpy(cnode->entry.name, "/", strlen("/"));
     cnode->children = list_new();
 
-    minix3_inode_cache = cnode;
+    map_insert(minix3_inode_caches, (u64) block_device, cnode);
 
     // Add root to data structures
     list_insert(nodes_to_cache, cnode);
@@ -159,7 +188,7 @@ bool minix3_cache_inodes() {
         cnode = nodes_to_cache->head->data;
         list_remove(nodes_to_cache, cnode);
 
-        minix3_cache_cnode(nodes_to_cache, inum_to_inode, cnode);
+        minix3_cache_cnode(block_device, nodes_to_cache, inum_to_inode, cnode);
     }
 
     list_free(nodes_to_cache);
@@ -168,7 +197,7 @@ bool minix3_cache_inodes() {
     return true;
 }
 
-Minix3CacheNode* minix3_get_file(char* path) {
+Minix3CacheNode* minix3_get_file(VirtioDevice* block_device, char* path) {
     List* path_names;
     char* name;
     ListNode* name_it;
@@ -176,6 +205,12 @@ Minix3CacheNode* minix3_get_file(char* path) {
     Minix3CacheNode* current_cnode;
     Minix3CacheNode* tmp_cnode;
     bool found_flag;
+
+    current_cnode = map_get(minix3_inode_caches, (u64) block_device);
+    if (current_cnode == NULL) {
+        printf("minix3_get_file: no root cnode for block device: 0x%08lx\n", (u64) block_device);
+        return NULL;
+    }
 
     path_names = filepath_split_path(path);
     
@@ -192,7 +227,6 @@ Minix3CacheNode* minix3_get_file(char* path) {
     list_remove(path_names, name);
     kfree(name);
 
-    current_cnode = minix3_inode_cache;
     for (name_it = path_names->head; name_it != NULL; name_it = name_it->next) {
         found_flag = false;
         name = name_it->data;
@@ -222,7 +256,9 @@ Minix3CacheNode* minix3_get_file(char* path) {
     return current_cnode;
 }
 
-size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t count) {
+size_t minix3_read_zone(VirtioDevice* block_device, uint32_t zone, Minix3ZoneType type, void* buf, size_t count) {
+    Minix3SuperBlock* sb_ptr;
+    Minix3SuperBlock minix3_sb;
     size_t num_read;
     size_t total_read;
     void* zone_addr;
@@ -237,6 +273,14 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
     if (count == 0) {
         return 0;
     }
+
+    sb_ptr = map_get(minix3_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("minix3_read_zone: no superblock for block device: 0x%08lx\n", (u64) block_device);
+        return -1UL;
+    }
+
+    minix3_sb = *sb_ptr;
 
     max_count = 0;
     switch (type) {
@@ -261,11 +305,11 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
         count = max_count;
     }
 
-    zone_addr = GET_ZONE_ADDR(zone);
+    zone_addr = GET_ZONE_ADDR(zone, minix3_sb);
 
     // If direct, just read and return
     if (type == Z_DIRECT) {
-        if (!block_read_poll(buf, zone_addr, count)) {
+        if (!block_read_poll(block_device, buf, zone_addr, count)) {
             return -1UL;
         }
 
@@ -276,7 +320,7 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
 
     // Read one full block of zone pointers
     block = kmalloc(minix3_sb.block_size);
-    if (!block_read_poll(block, zone_addr, minix3_sb.block_size)) {
+    if (!block_read_poll(block_device, block, zone_addr, minix3_sb.block_size)) {
         kfree(block);
         return -1UL;
     }
@@ -288,7 +332,7 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
             continue;
         }
 
-        num_read = minix3_read_zone(block[i], type - 1, buf + total_read, count - total_read);
+        num_read = minix3_read_zone(block_device, block[i], type - 1, buf + total_read, count - total_read);
         if (num_read == -1UL) {
             kfree(block);
             return -1UL;
@@ -305,7 +349,9 @@ size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t co
     return total_read;
 }
 
-size_t minix3_read_file(char* path, void* buf, size_t count) {
+size_t minix3_read_file(VirtioDevice* block_device, char* path, void* buf, size_t count) {
+    Minix3SuperBlock* sb_ptr;
+    Minix3SuperBlock minix3_sb;
     Minix3CacheNode* cnode;
     u32 zone;
     Minix3ZoneType type;
@@ -318,7 +364,15 @@ size_t minix3_read_file(char* path, void* buf, size_t count) {
         return 0;
     }
 
-    cnode = minix3_get_file(path);
+    sb_ptr = map_get(minix3_superblocks, (u64) block_device);
+    if (sb_ptr == NULL) {
+        printf("minix3_read_zone: no superblock for block device: 0x%08lx\n", (u64) block_device);
+        return -1UL;
+    }
+
+    minix3_sb = *sb_ptr;
+
+    cnode = minix3_get_file(block_device, path);
     if (cnode == NULL) {
         return 0;
     }
@@ -367,7 +421,7 @@ size_t minix3_read_file(char* path, void* buf, size_t count) {
             zone_count = count - total_read;
         }
 
-        num_read = minix3_read_zone(zone, type, buf + total_read, zone_count);
+        num_read = minix3_read_zone(block_device, zone, type, buf + total_read, zone_count);
         if (num_read == -1UL) {
             return -1UL;
         }

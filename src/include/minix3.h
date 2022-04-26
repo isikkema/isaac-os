@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <list.h>
+#include <virtio.h>
 
 
 #define MINIX3_MAGIC                0x4d5a
@@ -96,8 +97,8 @@ typedef enum Minix3ZoneType {
 } Minix3ZoneType;
 
 
-bool minix3_init();
-bool minix3_cache_inodes();
-Minix3CacheNode* minix3_get_file(char* path);
-size_t minix3_read_zone(uint32_t zone, Minix3ZoneType type, void* buf, size_t count);
-size_t minix3_read_file(char* path, void* buf, size_t count);
+bool minix3_init(VirtioDevice* block_device);
+bool minix3_cache_inodes(VirtioDevice* block_device);
+Minix3CacheNode* minix3_get_file(VirtioDevice* block_device, char* path);
+size_t minix3_read_zone(VirtioDevice* block_device, uint32_t zone, Minix3ZoneType type, void* buf, size_t count);
+size_t minix3_read_file(VirtioDevice* block_device, char* path, void* buf, size_t count);

@@ -20,7 +20,7 @@ void virtio_handle_irq(uint32_t irq) {
     for (it = device_head; it != NULL; it = it->next) {
         device = it->device;
         if (irq == device->irq && (*device->isr & (VIRTIO_ISR_QUEUE_INT | VIRTIO_ISR_DEVICE_CFG_INT))) {
-            device->handle_irq();
+            device->handle_irq(device);
             return;
         }
     }

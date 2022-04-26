@@ -326,7 +326,7 @@ void test(int argc, char** args) {
         return;
     }
 
-    vfs_mount(virtio_block_device, "/hello/minix");
+    vfs_mount(virtio_block_devices->head->data, "/hello/minix");
 
     char* buf = kzalloc(50000);
     size_t num_read = vfs_read_file("/hello/minix/mytextfile.txt", buf, 50000);
@@ -385,7 +385,7 @@ void read(int argc, char** args) {
 
     data = kmalloc(size);
 
-    if (!block_read_poll(data, addr, size)) {
+    if (!block_read_poll(virtio_block_devices->head->data, data, addr, size)) {
         printf("block_read failed\n");
         kfree(data);
         return;
@@ -421,7 +421,7 @@ void write(int argc, char** args) {
 
     data = (u8*) args[2];
 
-    if (!block_write_poll(addr, data, size)) {
+    if (!block_write_poll(virtio_block_devices->head->data, addr, data, size)) {
         printf("block_write failed\n");
         return;
     }

@@ -37,7 +37,7 @@ Ext4CacheNode* ext4_inode_cache;
 bool ext4_init() {
     u32 num_groups;
 
-    if (!block_read_poll(&ext4_sb, (void*) EXT4_SUPERBLOCK_OFFSET, sizeof(Ext4SuperBlock))) {
+    if (!block_read_poll(virtio_block_devices->head->data, &ext4_sb, (void*) EXT4_SUPERBLOCK_OFFSET, sizeof(Ext4SuperBlock))) {
         printf("ext4_init: superblock read failed\n");
         return false;
     }
@@ -53,7 +53,7 @@ bool ext4_init() {
         1;
 
     ext4_groups = kmalloc(sizeof(Ext4GroupDesc) * num_groups);
-    if (!block_read_poll(ext4_groups, (void*) EXT4_SUPERBLOCK_OFFSET + sizeof(Ext4SuperBlock), sizeof(Ext4GroupDesc) * num_groups)) {
+    if (!block_read_poll(virtio_block_devices->head->data, ext4_groups, (void*) EXT4_SUPERBLOCK_OFFSET + sizeof(Ext4SuperBlock), sizeof(Ext4GroupDesc) * num_groups)) {
         printf("ext4_init: groups read failed\n");
         
         kfree(ext4_groups);
@@ -124,7 +124,7 @@ bool ext4_cache_cnode(List* nodes_to_cache, Map* inum_to_inode, Ext4CacheNode* c
             cached_flag = false;
 
             inode_ptr = &inode;
-            if (!block_read_poll(inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Ext4Inode))) {
+            if (!block_read_poll(virtio_block_devices->head->data, inode_ptr, GET_INODE_ADDR(dir_entry->inode), sizeof(Ext4Inode))) {
                 printf("ext4_cache_cnode: inode read failed\n");
                 return false;
             }
@@ -169,7 +169,7 @@ bool ext4_cache_inodes() {
     Map* inum_to_inode;
 
     // Read root inode from disk
-    if (!block_read_poll(&inode, GET_INODE_ADDR(EXT2_ROOT_INO), sizeof(Ext4Inode))) {
+    if (!block_read_poll(virtio_block_devices->head->data, &inode, GET_INODE_ADDR(EXT2_ROOT_INO), sizeof(Ext4Inode))) {
         printf("ext4_cache_inodes: root inode read failed\n");
         return false;
     }
@@ -288,7 +288,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
                 count = filesize - offset;
             }
 
-            if (!block_read_poll(buf + offset, block_addr, count)) {
+            if (!block_read_poll(virtio_block_devices->head->data, buf + offset, block_addr, count)) {
                 printf("ext4_read_extent: extent leaf read failed\n");
                 return -1UL;
             }
@@ -306,7 +306,7 @@ size_t ext4_read_extent(Ext4ExtentHeader* extent_header, void* buf, size_t files
 
         block_addr = GET_BLOCK_ADDR(EXT4_COMBINE_VAL32(extent_index->ei_leaf_hi, extent_index->ei_leaf));
 
-        if (!block_read_poll(block, block_addr, count)) {
+        if (!block_read_poll(virtio_block_devices->head->data, block, block_addr, count)) {
             printf("ext4_read_extent: extent index read failed\n");
 
             kfree(block);

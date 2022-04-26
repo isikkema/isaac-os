@@ -194,7 +194,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
     // todo: Can hopefully later just do one big read
 
     // Read elf header
-    if (!block_read_poll(&elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
+    if (!block_read_poll(virtio_block_devices->head->data, &elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
         printf("process_load_elf: elf_header block_read failed\n");
         return false;
     }
@@ -223,7 +223,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
     load_addr_end = 0;
     for (i = 0; i < elf_header.e_phnum; i++) {
         // Read program header
-        if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
+        if (!block_read_poll(virtio_block_devices->head->data, &program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
             printf("process_load_elf: program_header %d block_read failed\n", i);
             return false;
         }
@@ -252,7 +252,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
     image = page_zalloc(num_load_pages);
 
     for (i = 0; i < elf_header.e_phnum; i++) {
-        if (!block_read_poll(&program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
+        if (!block_read_poll(virtio_block_devices->head->data, &program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
             printf("process_load_elf: program_header %d block_read failed\n", i);
             page_dealloc(image);
             return false;
@@ -263,6 +263,7 @@ bool process_load_elf(void* elf_addr, Process* process) {
         }
 
         if (!block_read_poll(
+            virtio_block_devices->head->data,
             image + (program_header.p_vaddr - load_addr_start),
             elf_addr + program_header.p_offset,
             program_header.p_memsz

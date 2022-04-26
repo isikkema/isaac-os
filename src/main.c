@@ -86,11 +86,6 @@ int main(int hart) {
         return 1;
     }
 
-    // if (!minix3_init()) {
-    //     printf("minix3_init failed\n");
-    //     return 1;
-    // }
-
     if (!process_init()) {
         printf("process_init failed\n");
         return 1;
