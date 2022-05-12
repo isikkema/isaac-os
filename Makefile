@@ -48,6 +48,11 @@ objs/%.o: asm/%.S Makefile
 gdb: cosc562.elf
 	$(GDB) $< -ex "target extended-remote debug.pipe"
 
+fs: hdd0.dsk hdd1.dsk
+
+hdd1.dsk: user/
+	mkfs.ext4 hdd1.dsk -d user/
+
 clean:
 	rm -f objs/*.o deps/*.d cosc562.elf
 	make -C sbi clean
