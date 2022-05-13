@@ -231,58 +231,61 @@ void poweroff() {
 }
 
 void start_hart(int argc, char** args) {
-    int hart;
-    Process* process;
 
-    if (argc < 2) {
-        printf("start: not enough arguments\n");
-        return;
-    }
+    printf("start_hart is deprecated\n");
+    
+    // int hart;
+    // Process* process;
 
-    hart = atoi(args[1]);
-    // if (hart == 0) {
-    //     printf("start: invalid argument: %s\n", args[1]);
+    // if (argc < 2) {
+    //     printf("start: not enough arguments\n");
     //     return;
     // }
 
-    process = process_new();
+    // hart = atoi(args[1]);
+    // // if (hart == 0) {
+    // //     printf("start: invalid argument: %s\n", args[1]);
+    // //     return;
+    // // }
+
+    // process = process_new();
     
-    if (!process_load_elf((void*) 0x0, process)) {
-        printf("start: process_load_elf failed\n");
-        process_free(process);
-        return;
-    }
+    // if (!process_load_elf((void*) 0x0, process)) {
+    //     printf("start: process_load_elf failed\n");
+    //     process_free(process);
+    //     return;
+    // }
 
-    if (!process_prepare(process)) {
-        printf("start: process_prepare failed\n");
-        process_free(process);
-        return;
-    }
+    // if (!process_prepare(process)) {
+    //     printf("start: process_prepare failed\n");
+    //     process_free(process);
+    //     return;
+    // }
 
-    printf("\nBefore running process: [");
-    char* ptr = process->rcb.stack_pages->head->data;
-    for (u32 i = 4050; i < 4096; i++) {
-        printf("%c", ptr[i]);
-    }
-    printf("]\n\n");
+    // printf("\nBefore running process: [");
+    // char* ptr = process->rcb.stack_pages->head->data;
+    // for (u32 i = 4050; i < 4096; i++) {
+    //     printf("%c", ptr[i]);
+    // }
+    // printf("]\n\n");
 
-    sbi_add_timer(hart, 10000000UL * 5);
+    // sbi_add_timer(hart, 10000000UL * 5);
 
-    if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
-        printf("start: sbi_hart_start failed\n");
-    }
+    // if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
+    //     printf("start: sbi_hart_start failed\n");
+    // }
 
-    printf("\nPress any key to continue...\n\n");
-    WFI();
+    // printf("\nPress any key to continue...\n\n");
+    // WFI();
 
-    printf("\nAfter running process: [");
-    for (u32 i = 4050; i < 4096; i++) {
-        printf("%c", ptr[i]);
-    }
+    // printf("\nAfter running process: [");
+    // for (u32 i = 4050; i < 4096; i++) {
+    //     printf("%c", ptr[i]);
+    // }
 
-    printf("]\n\n");
+    // printf("]\n\n");
 
-    process_free(process);
+    // process_free(process);
 }
 
 void print_args(int argc, char** args) {
@@ -327,7 +330,7 @@ void test(int argc, char** args) {
     p->supervisor_mode = false;
     p->state = PS_RUNNING;
     
-    if (!process_load_elf(p, "/user/test_syscalls.elf")) {
+    if (!process_load_elf(p, "/user/paint.elf")) {
         printf("test: process_load_elf failed\n");
 
         process_free(p);

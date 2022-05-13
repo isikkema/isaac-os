@@ -14,7 +14,9 @@ enum SYSCALL_NOS {
     SYS_READ,
     SYS_WRITE,
     SYS_STAT,
-    SYS_SEEK
+    SYS_SEEK,
+    SYS_GPU_GET_DISPLAY_INFO,
+    SYS_GPU_FILL_AND_FLUSH
 };
 
 
@@ -48,4 +50,10 @@ int write(int fd, const char *buffer, int bytes) {
     int bytes_written;
     asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(bytes_written) : "r"(SYS_WRITE), "r"(fd), "r"(buffer), "r"(bytes) : "a0", "a1", "a2", "a7");
     return bytes_written;
+}
+
+int gpu_get_display_info(int scanout_id, VirtioGpuRectangle* rect) {
+    int rv;
+    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_GET_DISPLAY_INFO), "r"(scanout_id), "r"(rect) : "a0", "a1", "a7");
+    return rv;
 }
