@@ -2,6 +2,7 @@
 
 
 #include <stdint.h>
+#include <process.h>
 
 
 enum SYSCALL_NOS {
@@ -21,4 +22,4 @@ enum SYSCALL_NOS {
 };
 
 
-void syscall_handle(uint64_t* regs);
+void syscall_handle(Process* process);

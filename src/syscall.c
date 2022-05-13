@@ -6,32 +6,45 @@
 #include <printf.h>
 
 
-void syscall_handle(uint64_t* regs) {
-    int hart;
-    Process* process;
+void syscall_handle(Process* process) {
+    uint64_t a0;
+    // uint64_t a1;
+    // uint64_t a2;
+    // uint64_t a3;
+    // uint64_t a4;
+    // uint64_t a5;
+    // uint64_t a6;
+    uint64_t a7;
 
-    printf("syscall_handle: regs: 0x%08lx\n", (uint64_t) regs);
-    printf("syscall_handle: code: %d\n", regs[XREG_A7]);
+    int hart;
+
+    a0 = process->frame.gpregs[XREG_A0];
+    // a1 = process->frame.gpregs[XREG_A1];
+    // a2 = process->frame.gpregs[XREG_A2];
+    // a3 = process->frame.gpregs[XREG_A3];
+    // a4 = process->frame.gpregs[XREG_A4];
+    // a5 = process->frame.gpregs[XREG_A5];
+    // a6 = process->frame.gpregs[XREG_A6];
+    a7 = process->frame.gpregs[XREG_A7];
 
     hart = sbi_whoami();
-    printf("syscall_handle: hart: %d\n", hart);
 
-    switch (regs[XREG_A7]) {
-        case SYS_EXIT:
-            printf("syscall_handle: exiting...\n");
-
-            process = schedule_get_process_on_hart(hart);
-            
+    switch (a7) {
+        case SYS_EXIT: ;
+            process->state = PS_DEAD;
             schedule_park(hart);
-            printf("syscall_handle: remove: %d\n", schedule_remove(process));
-            // printf("syscall_handle: stop: %d\n", schedule_stop(process));
+            schedule_remove(process);
             
             process_free(process);
 
             schedule_schedule(hart);
             break;
         
+        case SYS_PUTCHAR:
+            sbi_putchar((char) a0);
+            break;
+
         default:
-            printf("syscall_handle: unsupported syscall code: %d\n", regs[XREG_A7]);
+            printf("syscall_handle: unsupported syscall code: %d\n", a7);
     }
 }
