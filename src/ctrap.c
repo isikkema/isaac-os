@@ -48,6 +48,8 @@ void c_trap(void) {
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
 
+                WFI_LOOP();
+                
                 process = schedule_get_process_on_hart(hart);
                 schedule_remove(process);
                 schedule_stop(process);

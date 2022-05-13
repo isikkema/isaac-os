@@ -288,7 +288,6 @@ bool process_load_elf(Process* process, char* path) {
             program_header.p_memsz
         );
 
-
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
             flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | user_flag;
 
@@ -304,10 +303,11 @@ bool process_load_elf(Process* process, char* path) {
                 flags |= PB_EXECUTE;
             }
 
-            if (!mmu_map(
+            if (!mmu_map_many(
                 process->rcb.ptable,
                 program_header.p_vaddr + j * PS_4K,
                 (u64) image + (program_header.p_vaddr - load_addr_start) + j * PS_4K,
+                program_header.p_memsz,
                 flags
             )) {
                 printf("process_load_elf: mmu_map failed\n");
