@@ -48,10 +48,10 @@ void c_trap(void) {
         switch (scause) {
             case 8:
                 // Syscall
+                CSR_WRITE("sepc", sepc + 4);    // Return to next instruction
+
                 process = schedule_get_process_on_hart(hart);
                 syscall_handle(process);
-
-                CSR_WRITE("sepc", sepc + 4);    // Return to next instruction
                 break;
                 
             default:

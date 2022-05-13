@@ -43,6 +43,17 @@ void syscall_handle(Process* process) {
         case SYS_PUTCHAR:
             sbi_putchar((char) a0);
             break;
+        
+        case SYS_SLEEP: ;
+            unsigned long current_time;
+            
+            current_time = sbi_get_time();
+
+            process->state = PS_SLEEPING;
+            process->sleep_until = current_time + a0;
+
+            schedule_schedule(hart);
+            break;
 
         default:
             printf("syscall_handle: unsupported syscall code: %d\n", a7);

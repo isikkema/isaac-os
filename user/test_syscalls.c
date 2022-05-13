@@ -1,15 +1,12 @@
 #include <printf.h>
-
+#include <os.h>
 
 int main() {
     unsigned long i;
-    volatile unsigned long j;
-    for (i = 0; i < 1000000000; i++) {
-        j = i / 7;
+    for (i = 0; i < 10; i++) {
+        printf("%d\n", i);
 
-        if (i % 100000000 == 0) {
-            printf("%d\n", i);
-        }
+        sleep(10000000);
     }
 
     return 0;
