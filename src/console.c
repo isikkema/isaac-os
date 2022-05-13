@@ -321,7 +321,28 @@ void cmd_print(int argc, char** args) {
 }
 
 void test(int argc, char** args) {
+    Process* p;
 
+    p = process_new();
+    p->supervisor_mode = false;
+    p->state = PS_RUNNING;
+    
+    if (!process_load_elf(p, "/user/test_syscalls.elf")) {
+        printf("test: process_load_elf failed\n");
+
+        process_free(p);
+        return;
+    }
+
+    if (!process_prepare(p)) {
+        printf("test: process_prepare failed\n");
+
+        process_free(p);
+        return;
+    }
+
+    schedule_add(p);
+    return;
 }
 
 void random(int argc, char** args) {

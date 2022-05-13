@@ -9,6 +9,7 @@
 #include <csr.h>
 #include <start.h>
 #include <spawn.h>
+#include <vfs.h>
 #include <rs_int.h>
 #include <printf.h>
 
@@ -179,10 +180,13 @@ bool process_prepare(Process* process) {
 }
 
 
-bool process_load_elf(void* elf_addr, Process* process) {
+bool process_load_elf(Process* process, char* path) {
     Elf64_Ehdr elf_header;
     Elf64_Phdr program_header;
     void* image;
+    size_t filesize;
+    size_t num_read;
+    u8* file_buf;
     u64 load_addr_start;
     u64 load_addr_end;
     u64 num_load_pages;
@@ -191,26 +195,43 @@ bool process_load_elf(void* elf_addr, Process* process) {
     u64 i;
     u64 j;
 
-    // todo: Can hopefully later just do one big read
-
-    // Read elf header
-    if (!block_read_poll(virtio_block_devices->head->data, &elf_header, elf_addr, sizeof(Elf64_Ehdr))) {
-        printf("process_load_elf: elf_header block_read failed\n");
+    filesize = vfs_get_filesize(path);
+    if (filesize == -1UL) {
+        printf("process_load_elf: couldn't get filesize for path: (%s)\n", path);
         return false;
     }
 
+    // Read entire file into file_buf
+    file_buf = kmalloc(filesize);
+    num_read = vfs_read_file(path, file_buf, filesize);
+    if (num_read != filesize) {
+        printf("process_load_elf: couldn't read full file at path: (%s), filesize: %ld, num_read: %ld\n", path, filesize, num_read);
+
+        kfree(file_buf);
+        return false;
+    }
+
+    // Read elf header
+    memcpy(&elf_header, file_buf, sizeof(Elf64_Ehdr));
+
     if (memcmp(elf_header.e_ident, ELFMAG, strlen(ELFMAG)) != 0) {
-        printf("process_load_elf: magic not 0x%s: %018lx\n", ELFMAG, *(u64*) elf_header.e_ident);
+        printf("process_load_elf: magic not 0x%s: %lx\n", ELFMAG, *(u64*) elf_header.e_ident);
+        
+        kfree(file_buf);
         return false;
     }
 
     if (elf_header.e_machine != EM_RISCV) {
         printf("process_load_elf: machine not RISCV: %d\n", elf_header.e_machine);
+
+        kfree(file_buf);
         return false;
     }
 
     if (elf_header.e_type != ET_EXEC) {
         printf("process_load_elf: type not executable: %d\n", elf_header.e_type);
+
+        kfree(file_buf);
         return false;
     }
 
@@ -223,10 +244,11 @@ bool process_load_elf(void* elf_addr, Process* process) {
     load_addr_end = 0;
     for (i = 0; i < elf_header.e_phnum; i++) {
         // Read program header
-        if (!block_read_poll(virtio_block_devices->head->data, &program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("process_load_elf: program_header %d block_read failed\n", i);
-            return false;
-        }
+        memcpy(
+            &program_header,
+            file_buf + elf_header.e_phoff + elf_header.e_phentsize * i,
+            sizeof(Elf64_Ehdr)
+        );
 
         if (program_header.p_type != PT_LOAD || program_header.p_memsz <= 0) {
             continue;
@@ -245,6 +267,8 @@ bool process_load_elf(void* elf_addr, Process* process) {
     // If there are no PT_LOAD types
     if (load_addr_start > load_addr_end) {
         printf("process_load_elf: could not find any PT_LOAD program types\n");
+
+        kfree(file_buf);
         return false;
     }
 
@@ -252,26 +276,18 @@ bool process_load_elf(void* elf_addr, Process* process) {
     image = page_zalloc(num_load_pages);
 
     for (i = 0; i < elf_header.e_phnum; i++) {
-        if (!block_read_poll(virtio_block_devices->head->data, &program_header, elf_addr + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr))) {
-            printf("process_load_elf: program_header %d block_read failed\n", i);
-            page_dealloc(image);
-            return false;
-        }
+        memcpy(&program_header, file_buf + elf_header.e_phoff + elf_header.e_phentsize * i, sizeof(Elf64_Ehdr));
 
         if (program_header.p_type != PT_LOAD || program_header.p_memsz <= 0) {
             continue;
         }
 
-        if (!block_read_poll(
-            virtio_block_devices->head->data,
+        memcpy(
             image + (program_header.p_vaddr - load_addr_start),
-            elf_addr + program_header.p_offset,
+            file_buf + program_header.p_offset,
             program_header.p_memsz
-        )) {
-            printf("process_load_elf: segment block_read failed\n");
-            page_dealloc(image);
-            return false;
-        }
+        );
+
 
         for (j = 0; j < (program_header.p_memsz + PS_4K - 1) / PS_4K; j++) {
             flags = mmu_flags(process->rcb.ptable, program_header.p_vaddr + j * PS_4K) | user_flag;
@@ -295,7 +311,9 @@ bool process_load_elf(void* elf_addr, Process* process) {
                 flags
             )) {
                 printf("process_load_elf: mmu_map failed\n");
+
                 page_dealloc(image);
+                kfree(file_buf);
                 return false;
             }
         }
@@ -306,5 +324,6 @@ bool process_load_elf(void* elf_addr, Process* process) {
 
     process->frame.sepc = elf_header.e_entry;
 
+    kfree(file_buf);
     return true;
 }

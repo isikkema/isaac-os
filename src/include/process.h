@@ -73,4 +73,4 @@ Process* process_new();
 void process_free(Process* process);
 bool process_prepare(Process* process);
 
-bool process_load_elf(void* elf_addr, Process* process);
+bool process_load_elf(Process* process, char* path);

@@ -159,3 +159,35 @@ size_t vfs_read_file(char* path, void* buf, size_t count) {
     kfree(path_left);
     return num_read;
 }
+
+size_t vfs_get_filesize(char* path) {
+    VfsCacheNode* cnode;
+    char* path_left;
+    size_t size;
+
+    path_left = kzalloc(strlen(path) + 2);
+    path_left[0] = '/';
+    cnode = vfs_get_mount(path, path_left + 1);
+    if (cnode == NULL) {
+        kfree(path_left);
+        return -1UL;
+    }
+
+    switch (cnode->type) {
+        case NT_MINIX3:
+            size = minix3_get_filesize(cnode->block_device, path_left);
+            break;
+        
+        case NT_EXT4:
+            size = ext4_get_filesize(cnode->block_device, path_left);
+            break;
+        
+        default:
+            printf("vfs_get_filesize: unsupported type: %d\n", cnode->type);
+            size = -1UL;
+            break;
+    }
+
+    kfree(path_left);
+    return size;
+}

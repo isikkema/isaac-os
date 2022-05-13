@@ -50,8 +50,11 @@ gdb: cosc562.elf
 
 fs: hdd0.dsk hdd1.dsk
 
-hdd1.dsk: user/
-	mkfs.ext4 hdd1.dsk -d user/
+hdd0.dsk: minix3.dsk
+	dd conv=notrunc if=minix3.dsk of=hdd0.dsk
+
+hdd1.dsk: ext4.dsk
+	dd conv=notrunc if=ext4.dsk of=hdd1.dsk
 
 clean:
 	rm -f objs/*.o deps/*.d cosc562.elf

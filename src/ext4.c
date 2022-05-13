@@ -406,10 +406,6 @@ size_t ext4_read_file(VirtioDevice* block_device, char* path, void* buf, size_t 
     Ext4ExtentHeader* extent_header;
     size_t filesize;
 
-    if (count == 0) {
-        return 0;
-    }
-
     cnode = ext4_get_file(block_device, path);
     if (cnode == NULL) {
         return 0;
@@ -421,11 +417,22 @@ size_t ext4_read_file(VirtioDevice* block_device, char* path, void* buf, size_t 
     }
 
     filesize = EXT4_COMBINE_VAL32(cnode->inode.i_size_high, cnode->inode.i_size);
-    if (count > filesize) {
+    if (count > filesize || count == 0) {
         count = filesize;
     }
 
     extent_header = (Ext4ExtentHeader*) cnode->inode.i_block;
 
     return ext4_read_extent(block_device, extent_header, buf, count);
+}
+
+size_t ext4_get_filesize(VirtioDevice* block_device, char* path) {
+    Ext4CacheNode* cnode;
+
+    cnode = ext4_get_file(block_device, path);
+    if (cnode == NULL) {
+        return -1UL;
+    }
+
+    return EXT4_COMBINE_VAL32(cnode->inode.i_size_high, cnode->inode.i_size);
 }

@@ -288,6 +288,13 @@ void schedule_print() {
     i = 0;
     for (it = schedule_processes->head; it != NULL; it = it->next) {
         process = it->data;
+        if (process == NULL) {
+            printf("schedule_print: idx: %2d: NULL process\n");
+
+            i++;
+            continue;
+        }
+        
         printf("schedule_print: idx: %2d, pid: %2d, vruntime: %10d, state: %d, on_hart: %d\n", i, process->pid, process->stats.vruntime, process->state, process->on_hart);
 
         i++;

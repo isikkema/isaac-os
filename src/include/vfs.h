@@ -25,3 +25,4 @@ bool vfs_init();
 VfsCacheNode* vfs_mount(VirtioDevice* block_device, char* path);
 VfsCacheNode* vfs_get_mount(char* path, char* path_left);
 size_t vfs_read_file(char* path, void* buf, size_t count);
+size_t vfs_get_filesize(char* path);

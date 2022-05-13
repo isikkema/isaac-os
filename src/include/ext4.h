@@ -334,3 +334,4 @@ bool ext4_cache_inodes(VirtioDevice* block_device);
 Ext4CacheNode* ext4_get_file(VirtioDevice* block_device, char* path);
 size_t ext4_read_extent(VirtioDevice* block_device, Ext4ExtentHeader* extent_header, void* buf, size_t filesize);
 size_t ext4_read_file(VirtioDevice* block_device, char* path, void* buf, size_t count);
+size_t ext4_get_filesize(VirtioDevice* block_device, char* path);

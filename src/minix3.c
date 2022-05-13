@@ -366,10 +366,6 @@ size_t minix3_read_file(VirtioDevice* block_device, char* path, void* buf, size_
     size_t total_read;
     u32 i;
 
-    if (count == 0) {
-        return 0;
-    }
-
     sb_ptr = map_get(minix3_superblocks, (u64) block_device);
     if (sb_ptr == NULL) {
         printf("minix3_read_zone: no superblock for block device: 0x%08lx\n", (u64) block_device);
@@ -383,7 +379,7 @@ size_t minix3_read_file(VirtioDevice* block_device, char* path, void* buf, size_
         return 0;
     }
 
-    if (count > cnode->inode.size) {
+    if (count > cnode->inode.size || count == 0) {
         count = cnode->inode.size;
     }
 
@@ -440,4 +436,15 @@ size_t minix3_read_file(VirtioDevice* block_device, char* path, void* buf, size_
     }
 
     return total_read;
+}
+
+size_t minix3_get_filesize(VirtioDevice* block_device, char* path) {
+    Minix3CacheNode* cnode;
+
+    cnode = minix3_get_file(block_device, path);
+    if (cnode == NULL) {
+        return -1UL;
+    }
+
+    return cnode->inode.size;
 }
