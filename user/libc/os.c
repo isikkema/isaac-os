@@ -57,3 +57,9 @@ int gpu_get_display_info(int scanout_id, VirtioGpuRectangle* rect) {
     asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_GET_DISPLAY_INFO), "r"(scanout_id), "r"(rect) : "a0", "a1", "a7");
     return rv;
 }
+
+int gpu_fill_and_flush(int scanout_id, VirtioGpuRectangle* fill_rect, VirtioGpuPixel* pixel) {
+    int rv;
+    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_FILL_AND_FLUSH), "r"(scanout_id), "r"(fill_rect), "r"(pixel) : "a0", "a1", "a2", "a7");
+    return rv;
+}

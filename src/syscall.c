@@ -32,11 +32,33 @@ void copy_to_user(void* dst, void* src, size_t n, Process* p) {
     }
 }
 
+void copy_from_user(void* dst, void* src, size_t n, Process* p) {
+    size_t num_copied;
+    size_t num_to_copy;
+    uint64_t psrc;
+    uint64_t psrc_aligned;
+
+    num_copied = 0;
+    while (num_copied < n) {
+        psrc = mmu_translate(p->rcb.ptable, (uint64_t) src + num_copied);
+        psrc_aligned = (psrc + PS_4K) & (PS_4K - 1UL);
+
+        num_to_copy = n - num_copied;
+        if (num_to_copy > psrc_aligned - psrc) {
+            num_to_copy = psrc_aligned - psrc;
+        }
+
+        memcpy(dst + num_copied, (void*) psrc, num_to_copy);
+
+        num_copied += num_to_copy;
+    }
+}
+
 
 void syscall_handle(Process* process) {
     uint64_t a0;
     uint64_t a1;
-    // uint64_t a2;
+    uint64_t a2;
     // uint64_t a3;
     // uint64_t a4;
     // uint64_t a5;
@@ -48,7 +70,7 @@ void syscall_handle(Process* process) {
 
     a0 = process->frame.gpregs[XREG_A0];
     a1 = process->frame.gpregs[XREG_A1];
-    // a2 = process->frame.gpregs[XREG_A2];
+    a2 = process->frame.gpregs[XREG_A2];
     // a3 = process->frame.gpregs[XREG_A3];
     // a4 = process->frame.gpregs[XREG_A4];
     // a5 = process->frame.gpregs[XREG_A5];
@@ -101,6 +123,16 @@ void syscall_handle(Process* process) {
             );
 
             *rv = 0;
+            break;
+        
+        case SYS_GPU_FILL_AND_FLUSH: ;
+            VirtioGpuRectangle fill_rect;
+            VirtioGpuPixel pixel;
+
+            copy_from_user(&fill_rect, (void*) a1, sizeof(VirtioGpuRectangle), process);
+            copy_from_user(&pixel, (void*) a2, sizeof(VirtioGpuPixel), process);
+
+            *rv = (int) !gpu_fill_and_flush(a0, fill_rect, pixel);
             break;
 
         default:
