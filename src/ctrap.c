@@ -5,6 +5,7 @@
 #include <sbi.h>
 #include <schedule.h>
 #include <start.h>
+#include <syscall.h>
 
 
 void c_trap(void) {
@@ -45,11 +46,17 @@ void c_trap(void) {
         }
     } else {
         switch (scause) {
+            case 8:
+                // Syscall
+                process = schedule_get_process_on_hart(hart);
+                syscall_handle(process->frame.gpregs);
+
+                CSR_WRITE("sepc", sepc + 4);    // Return to next instruction
+                break;
+                
             default:
                 printf("error: c_trap: unhandled synchronous interrupt: %ld\n", scause);
 
-                WFI_LOOP();
-                
                 process = schedule_get_process_on_hart(hart);
                 schedule_remove(process);
                 schedule_stop(process);

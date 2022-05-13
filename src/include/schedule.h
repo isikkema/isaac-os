@@ -15,6 +15,7 @@ bool schedule_remove(Process* process);
 Process* schedule_get_process_on_hart(int hart);
 bool schedule_stop(Process* process);
 Process* schedule_pop();
+void schedule_park(int hart);
 void schedule_schedule(int hart);
 
 void schedule_print();
