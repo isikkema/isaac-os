@@ -28,6 +28,12 @@ void sleep(int tm) {
     asm volatile("mv a7, %0\nmv a0, %1\necall" : : "r"(SYS_SLEEP), "r"(tm) : "a0", "a7");
 }
 
+unsigned int get_events(InputEvent event_buffer[], unsigned int max_events) {
+    unsigned int ret;
+    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\necall\nmv %0, a0" : "=r"(ret) : "r"(SYS_OLD_GET_EVENTS), "r"(event_buffer), "r"(max_events) : "a0", "a1", "a7");
+    return ret;
+}
+
 int open(const char *path, int flags) {
     int fd;
     asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\necall\nmv %0, a0" : "=r"(fd) : "r"(SYS_OPEN), "r"(path), "r"(flags) : "a0", "a1", "a7");

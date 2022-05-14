@@ -14,6 +14,7 @@ VirtioDevice* virtio_input_keyboard_device;
 VirtioDevice* virtio_input_tablet_device;
 
 VirtioInputEventRingBuffer virtio_input_event_ring_buffer;
+Mutex virtio_input_event_ring_buffer_lock;
 
 
 // Just overwrite silently for now
@@ -21,6 +22,8 @@ void virtio_input_event_push(VirtioInputEvent event) {
     VirtioInputEvent* buffer;
     u32 idx;
     u32 size;
+
+    mutex_sbi_lock(&virtio_input_event_ring_buffer_lock);
 
     buffer = virtio_input_event_ring_buffer.buffer;
     idx = virtio_input_event_ring_buffer.idx;
@@ -32,6 +35,11 @@ void virtio_input_event_push(VirtioInputEvent event) {
     } else {
         idx = (idx + 1) % VIRTIO_INPUT_EVENT_BUFFER_SIZE;
     }
+
+    virtio_input_event_ring_buffer.idx = idx;
+    virtio_input_event_ring_buffer.size = size;
+
+    mutex_unlock(&virtio_input_event_ring_buffer_lock);
 }
 
 VirtioInputEvent virtio_input_event_pop() {
@@ -40,11 +48,14 @@ VirtioInputEvent virtio_input_event_pop() {
     u32 size;
     VirtioInputEvent rv;
 
+    mutex_sbi_lock(&virtio_input_event_ring_buffer_lock);
+
     buffer = virtio_input_event_ring_buffer.buffer;
     idx = virtio_input_event_ring_buffer.idx;
     size = virtio_input_event_ring_buffer.size;
 
     if (size == 0) {
+        mutex_unlock(&virtio_input_event_ring_buffer_lock);
         return (VirtioInputEvent) {-1, -1, -1};
     }
 
@@ -52,6 +63,10 @@ VirtioInputEvent virtio_input_event_pop() {
     size--;
     idx = (idx + 1) % VIRTIO_INPUT_EVENT_BUFFER_SIZE;
 
+    virtio_input_event_ring_buffer.idx = idx;
+    virtio_input_event_ring_buffer.size = size;
+    
+    mutex_unlock(&virtio_input_event_ring_buffer_lock);
     return rv;
 }
 
@@ -141,7 +156,6 @@ void input_tablet_handle_irq(VirtioDevice* virtio_input_tablet_device) {
         id = virtio_input_tablet_device->queue_device->ring[ack_idx % queue_size].id;
         event = handle_info->event_buffer[id];
 
-        printf("input_tablet_handle_irq: [TABLET EVENT]: %02x/%02x/%08x\n", event.type, event.code, event.value);
         virtio_input_event_push(event);
 
         virtio_input_tablet_device->queue_driver->idx++;

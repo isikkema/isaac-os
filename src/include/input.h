@@ -6,6 +6,7 @@
 #include <virtio.h>
 #include <pci.h>
 #include <input-event-codes.h>
+#include <lock.h>
 
 
 #define VIRTIO_INPUT_EVENT_BUFFER_SIZE 512
@@ -72,6 +73,7 @@ extern VirtioDevice* virtio_input_keyboard_device;
 extern VirtioDevice* virtio_input_tablet_device;
 
 extern VirtioInputEventRingBuffer virtio_input_event_ring_buffer;
+extern Mutex virtio_input_event_ring_buffer_lock;
 
 
 bool virtio_input_driver(volatile EcamHeader* ecam);
@@ -80,3 +82,4 @@ void input_keyboard_handle_irq();
 void input_tablet_handle_irq();
 
 bool input_init();
+VirtioInputEvent virtio_input_event_pop();

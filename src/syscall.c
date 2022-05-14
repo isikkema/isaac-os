@@ -7,6 +7,7 @@
 #include <string.h>
 #include <mmu.h>
 #include <page_alloc.h>
+#include <input.h>
 #include <printf.h>
 
 
@@ -52,6 +53,38 @@ void copy_from_user(void* dst, void* src, size_t n, Process* p) {
 
         num_copied += num_to_copy;
     }
+}
+
+
+unsigned int syscall_get_events(VirtioInputEvent event_buffer[], unsigned int max_events, Process* p) {
+    unsigned int num_events;
+    VirtioInputEvent event;
+
+    if (max_events == 0) {
+        return 0;
+    }
+
+    num_events = 0;
+
+    while (true) {
+        event = virtio_input_event_pop();
+        if (
+            event.type == (uint16_t) -1 &&
+            event.code == (uint16_t) -1 &&
+            event.value == -1U
+        ) {
+            break;
+        }
+
+        copy_to_user(event_buffer + num_events, &event, sizeof(VirtioInputEvent), p);
+
+        num_events++;
+        if (num_events == max_events) {
+            break;
+        }
+    }
+
+    return num_events;
 }
 
 
@@ -133,6 +166,10 @@ void syscall_handle(Process* process) {
             copy_from_user(&pixel, (void*) a2, sizeof(VirtioGpuPixel), process);
 
             *rv = (int) !gpu_fill_and_flush(a0, fill_rect, pixel);
+            break;
+        
+        case SYS_OLD_GET_EVENTS: ;
+            *rv = syscall_get_events((VirtioInputEvent*) a0, a1, process);
             break;
 
         default:

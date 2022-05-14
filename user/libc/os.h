@@ -2,10 +2,12 @@
 
 
 #include "gpu.h"
+#include "event.h"
 
 
 void sleep(int tm);
 void yield(void);
+unsigned int get_events(InputEvent event_buffer[], unsigned int max_events);
 int open(const char *path, int flags);
 int read(int fd, char *buffer, int max_size);
 int write(int fd, const char *buffer, int bytes);
