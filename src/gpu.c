@@ -428,3 +428,43 @@ bool gpu_fill_and_flush(uint32_t scanout_id, VirtioGpuRectangle fill_rect, Virti
 
     return true;
 }
+
+bool gpu_fill(uint32_t scanout_id, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel) {
+    VirtioGpuPixel* framebuffer;
+    VirtioGpuRectangle screen_rect;
+
+    framebuffer = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].framebuffer;
+    screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].rect;
+
+    if (!framebuffer_rectangle_fill(
+        framebuffer,
+        screen_rect,
+        fill_rect,
+        pixel
+    )) {
+        printf("framebuffer_rectangle_fill failed\n");
+        return false;
+    }
+
+    return true;
+}
+
+bool gpu_flush(uint32_t scanout_id, VirtioGpuRectangle flush_rect) {
+    u32 resource_id;
+    VirtioGpuRectangle screen_rect;
+
+    resource_id = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].resource_id;
+    screen_rect = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[scanout_id].rect;
+
+    if (!gpu_transfer_to_host_2d(flush_rect, sizeof(VirtioGpuPixel) * (flush_rect.y * screen_rect.width + flush_rect.x), resource_id)) {
+        printf("gpu_transfer_to_host_2d failed\n");
+        return false;
+    }
+
+    if (!gpu_resource_flush(flush_rect, resource_id)) {
+        printf("gpu_resource_flush failed\n");
+        return false;
+    }
+
+    return true;
+}

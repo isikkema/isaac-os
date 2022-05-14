@@ -174,7 +174,7 @@ Process* schedule_pop() {
     u64 current_time;
 
     // Make sure we're doing what we should be doing
-    schedule_assert();  // todo: remove after debugging
+    // schedule_assert();  // todo: remove after debugging
 
     mutex_sbi_lock(&schedule_lock);
 

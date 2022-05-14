@@ -16,7 +16,8 @@ enum SYSCALL_NOS {
     SYS_STAT,
     SYS_SEEK,
     SYS_GPU_GET_DISPLAY_INFO,
-    SYS_GPU_FILL_AND_FLUSH
+    SYS_GPU_FILL,
+    SYS_GPU_FLUSH,
 };
 
 
@@ -64,8 +65,14 @@ int gpu_get_display_info(int scanout_id, VirtioGpuRectangle* rect) {
     return rv;
 }
 
-int gpu_fill_and_flush(int scanout_id, VirtioGpuRectangle* fill_rect, VirtioGpuPixel* pixel) {
+int gpu_fill(int scanout_id, VirtioGpuRectangle* fill_rect, VirtioGpuPixel* pixel) {
     int rv;
-    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_FILL_AND_FLUSH), "r"(scanout_id), "r"(fill_rect), "r"(pixel) : "a0", "a1", "a2", "a7");
+    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\nmv a2, %4\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_FILL), "r"(scanout_id), "r"(fill_rect), "r"(pixel) : "a0", "a1", "a2", "a7");
+    return rv;
+}
+
+int gpu_flush(int scanout_id, VirtioGpuRectangle* flush_rect) {
+    int rv;
+    asm volatile("mv a7, %1\nmv a0, %2\nmv a1, %3\necall\nmv %0, a0" : "=r"(rv) : "r"(SYS_GPU_FLUSH), "r"(scanout_id), "r"(flush_rect) : "a0", "a1", "a7");
     return rv;
 }

@@ -184,3 +184,5 @@ bool gpu_resource_flush(VirtioGpuRectangle rect, uint32_t resource_id);
 bool framebuffer_rectangle_fill(VirtioGpuPixel* framebuffer, VirtioGpuRectangle screen_rect, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel);
 bool gpu_init();
 bool gpu_fill_and_flush(uint32_t scanout_id, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel);
+bool gpu_fill(uint32_t scanout_id, VirtioGpuRectangle fill_rect, VirtioGpuPixel pixel);
+bool gpu_flush(uint32_t scanout_id, VirtioGpuRectangle flush_rect);

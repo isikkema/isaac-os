@@ -158,14 +158,22 @@ void syscall_handle(Process* process) {
             *rv = 0;
             break;
         
-        case SYS_GPU_FILL_AND_FLUSH: ;
+        case SYS_GPU_FILL: ;
             VirtioGpuRectangle fill_rect;
             VirtioGpuPixel pixel;
 
             copy_from_user(&fill_rect, (void*) a1, sizeof(VirtioGpuRectangle), process);
             copy_from_user(&pixel, (void*) a2, sizeof(VirtioGpuPixel), process);
 
-            *rv = (int) !gpu_fill_and_flush(a0, fill_rect, pixel);
+            *rv = (int) !gpu_fill(a0, fill_rect, pixel);
+            break;
+        
+        case SYS_GPU_FLUSH: ;
+            VirtioGpuRectangle flush_rect;
+
+            copy_from_user(&flush_rect, (void*) a1, sizeof(VirtioGpuRectangle), process);
+
+            *rv = (int) !gpu_flush(a0, flush_rect);
             break;
         
         case SYS_OLD_GET_EVENTS: ;

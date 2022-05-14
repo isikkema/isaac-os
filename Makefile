@@ -1,7 +1,7 @@
 CC=riscv64-unknown-linux-gnu-gcc
 GDB=riscv64-unknown-linux-gnu-gdb
 
-CFLAGS=-g -O0 -Wall -Wextra -march=rv64gc -mabi=lp64d -ffreestanding -nostdlib -nostartfiles -Isrc/include -mcmodel=medany
+CFLAGS=-g -O2 -Wall -Wextra -march=rv64gc -mabi=lp64d -ffreestanding -nostdlib -nostartfiles -Isrc/include -mcmodel=medany
 LDFLAGS=-Tlds/riscv.lds
 
 SOURCES=$(wildcard src/*.c)

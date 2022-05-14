@@ -78,12 +78,12 @@ int main(int hart) {
     u32 height = ((VirtioGpuDeviceInfo*) virtio_gpu_device->device_info)->displays[0].rect.height;
     
     if (!gpu_fill_and_flush(0, (VirtioGpuRectangle) {0, 0, width, height}, (VirtioGpuPixel) {255, 0, 0, 255})) {
-        printf("gpu_fill_and_fluh failed\n");
+        printf("gpu_fill_and_flush failed\n");
         return 1;
     }
 
     if (!gpu_fill_and_flush(0, (VirtioGpuRectangle) {width/4, height/4, width/2, height/2}, (VirtioGpuPixel) {0, 255, 255, 255})) {
-        printf("gpu_fill_and_fluh failed\n");
+        printf("gpu_fill_and_flush failed\n");
         return 1;
     }
 

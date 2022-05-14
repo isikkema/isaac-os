@@ -13,7 +13,8 @@ int read(int fd, char *buffer, int max_size);
 int write(int fd, const char *buffer, int bytes);
 void close(int fd);
 int gpu_get_display_info(int scanout_id, VirtioGpuRectangle* rect);
-int gpu_fill_and_flush(int scanout_id, VirtioGpuRectangle* fill_rect, VirtioGpuPixel* pixel);
+int gpu_fill(int scanout_id, VirtioGpuRectangle* fill_rect, VirtioGpuPixel* pixel);
+int gpu_flush(int scanout_id, VirtioGpuRectangle* flush_rect);
 
 #define O_RDONLY 0
 #define O_WRONLY 1
