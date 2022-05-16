@@ -7,7 +7,10 @@
 
 #define BRUSH_SIZE 10
 
-#define EVENT_BUF_SIZE  512
+#define EVENT_BUF_SIZE 512
+
+#define NUM_COLORS 6
+#define COLORS_HEIGHT 50
 
 
 typedef struct AppState {
@@ -23,17 +26,24 @@ typedef struct AppState {
     } screen;
 
     struct {
-        VirtioGpuRectangle prev_rect;
+        VirtioGpuRectangle rect;
+        VirtioGpuRectangle prev_brush_rect;
     } canvas;
+
+    struct {
+        VirtioGpuRectangle rect;
+        VirtioGpuPixel pixel;
+    } colors[NUM_COLORS];
 } State;
 
 
 State app_state;
 
 
-int init_screen() {
+int app_init() {
     VirtioGpuRectangle screen_rect;
     int rv;
+    int i;
 
     rv = gpu_get_display_info(SCANOUT_ID, &screen_rect);
     if (rv != 0) {
@@ -43,9 +53,36 @@ int init_screen() {
     app_state.screen.width = screen_rect.width;
     app_state.screen.height = screen_rect.height;
 
-    rv = gpu_fill(SCANOUT_ID, &screen_rect, &((VirtioGpuPixel) {255, 255, 255, 255}));
+    app_state.canvas.rect = (VirtioGpuRectangle) {
+        0, COLORS_HEIGHT,
+        screen_rect.width,
+        screen_rect.height - COLORS_HEIGHT
+    };
+
+    rv = gpu_fill(SCANOUT_ID, &app_state.canvas.rect, &((VirtioGpuPixel) {255, 255, 255, 255}));
     if (rv != 0) {
         return rv;
+    }
+
+    app_state.colors[0].pixel = (VirtioGpuPixel) {255, 0, 0, 255};
+    app_state.colors[1].pixel = (VirtioGpuPixel) {0, 255, 0, 255};
+    app_state.colors[2].pixel = (VirtioGpuPixel) {0, 0, 255, 255};
+    app_state.colors[3].pixel = (VirtioGpuPixel) {255, 255, 0, 255};
+    app_state.colors[4].pixel = (VirtioGpuPixel) {255, 0, 255, 255};
+    app_state.colors[5].pixel = (VirtioGpuPixel) {0, 255, 255, 255};
+
+    for (i = 0; i < NUM_COLORS; i++) {
+        app_state.colors[i].rect = (VirtioGpuRectangle) {
+            screen_rect.width / NUM_COLORS * i,
+            0,
+            screen_rect.width / NUM_COLORS,
+            COLORS_HEIGHT
+        };
+
+        rv = gpu_fill(SCANOUT_ID, &app_state.colors[i].rect, &app_state.colors[i].pixel);
+        if (rv != 0) {
+            return rv;
+        }
     }
 
     rv = gpu_flush(SCANOUT_ID, &screen_rect);
@@ -178,7 +215,7 @@ void app_canvas_handle_cursor_event() {
     VirtioGpuRectangle brush_rect;
 
     if (!app_state.cursor.clicking) {
-        app_state.canvas.prev_rect = (VirtioGpuRectangle) {
+        app_state.canvas.prev_brush_rect = (VirtioGpuRectangle) {
             -1U, -1U, -1U, -1U
         };
 
@@ -188,17 +225,17 @@ void app_canvas_handle_cursor_event() {
     brush_rect = get_brush_rect_from_pos();
 
     if (
-        app_state.canvas.prev_rect.x == -1U &&
-        app_state.canvas.prev_rect.y == -1U &&
-        app_state.canvas.prev_rect.width == -1U &&
-        app_state.canvas.prev_rect.height == -1U
+        app_state.canvas.prev_brush_rect.x == -1U &&
+        app_state.canvas.prev_brush_rect.y == -1U &&
+        app_state.canvas.prev_brush_rect.width == -1U &&
+        app_state.canvas.prev_brush_rect.height == -1U
     ) {
-        app_state.canvas.prev_rect = brush_rect;
+        app_state.canvas.prev_brush_rect = brush_rect;
     }
 
-    draw_line(app_state.canvas.prev_rect, brush_rect, (VirtioGpuPixel) {255, 0, 0, 255});
+    draw_line(app_state.canvas.prev_brush_rect, brush_rect, (VirtioGpuPixel) {255, 0, 0, 255});
 
-    app_state.canvas.prev_rect = brush_rect;
+    app_state.canvas.prev_brush_rect = brush_rect;
 }
 
 void app_handle_cursor_event(InputEvent event_x, InputEvent event_y) {
@@ -247,7 +284,7 @@ void app_loop() {
 int main() {
     int rv;
 
-    rv = init_screen();
+    rv = app_init();
     if (rv != 0) {
         printf("paint: failed to init screen\n");
         return rv;
