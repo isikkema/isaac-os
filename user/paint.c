@@ -32,8 +32,12 @@ typedef struct AppState {
 
     struct {
         VirtioGpuRectangle rect;
-        VirtioGpuPixel pixel;
-    } colors[NUM_COLORS];
+        int active_color;
+        struct {
+            VirtioGpuRectangle rect;
+            VirtioGpuPixel pixel;
+        } colors[NUM_COLORS];
+    } color_picker;
 } State;
 
 
@@ -64,22 +68,28 @@ int app_init() {
         return rv;
     }
 
-    app_state.colors[0].pixel = (VirtioGpuPixel) {255, 0, 0, 255};
-    app_state.colors[1].pixel = (VirtioGpuPixel) {0, 255, 0, 255};
-    app_state.colors[2].pixel = (VirtioGpuPixel) {0, 0, 255, 255};
-    app_state.colors[3].pixel = (VirtioGpuPixel) {255, 255, 0, 255};
-    app_state.colors[4].pixel = (VirtioGpuPixel) {255, 0, 255, 255};
-    app_state.colors[5].pixel = (VirtioGpuPixel) {0, 255, 255, 255};
+    app_state.color_picker.rect = (VirtioGpuRectangle) {
+        0, 0,
+        screen_rect.width,
+        COLORS_HEIGHT
+    };
+
+    app_state.color_picker.colors[0].pixel = (VirtioGpuPixel) {255, 0, 0, 255};
+    app_state.color_picker.colors[1].pixel = (VirtioGpuPixel) {0, 255, 0, 255};
+    app_state.color_picker.colors[2].pixel = (VirtioGpuPixel) {0, 0, 255, 255};
+    app_state.color_picker.colors[3].pixel = (VirtioGpuPixel) {255, 255, 0, 255};
+    app_state.color_picker.colors[4].pixel = (VirtioGpuPixel) {255, 0, 255, 255};
+    app_state.color_picker.colors[5].pixel = (VirtioGpuPixel) {0, 255, 255, 255};
 
     for (i = 0; i < NUM_COLORS; i++) {
-        app_state.colors[i].rect = (VirtioGpuRectangle) {
+        app_state.color_picker.colors[i].rect = (VirtioGpuRectangle) {
             screen_rect.width / NUM_COLORS * i,
             0,
             screen_rect.width / NUM_COLORS,
             COLORS_HEIGHT
         };
 
-        rv = gpu_fill(SCANOUT_ID, &app_state.colors[i].rect, &app_state.colors[i].pixel);
+        rv = gpu_fill(SCANOUT_ID, &app_state.color_picker.colors[i].rect, &app_state.color_picker.colors[i].pixel);
         if (rv != 0) {
             return rv;
         }
@@ -184,22 +194,22 @@ VirtioGpuRectangle get_brush_rect_from_pos() {
     y1 = y - BRUSH_SIZE / 2;
     y2 = y + BRUSH_SIZE / 2;
 
-    if (x1 < 0) {
-        x1 = 0;
-        x2 = BRUSH_SIZE;
+    if (x1 < (int) app_state.canvas.rect.x) {
+        x1 = app_state.canvas.rect.x;
+        x2 = x1 + BRUSH_SIZE;
     }
 
-    if ((uint32_t) x2 >= app_state.screen.width) {
+    if (x2 >= (int) app_state.canvas.rect.width) {
         x2 = app_state.screen.width - 1;
         x1 = x2 - BRUSH_SIZE;
     }
 
-    if (y1 < 0) {
-        y1 = 0;
-        y2 = BRUSH_SIZE;
+    if (y1 < (int) app_state.canvas.rect.y) {
+        y1 = app_state.canvas.rect.y;
+        y2 = y1 + BRUSH_SIZE;
     }
 
-    if ((uint32_t) y2 >= app_state.screen.height) {
+    if (y2 >= (int) app_state.canvas.rect.height) {
         y2 = app_state.screen.height - 1;
         y1 = y2 - BRUSH_SIZE;
     }
@@ -233,7 +243,7 @@ void app_canvas_handle_cursor_event() {
         app_state.canvas.prev_brush_rect = brush_rect;
     }
 
-    draw_line(app_state.canvas.prev_brush_rect, brush_rect, (VirtioGpuPixel) {255, 0, 0, 255});
+    draw_line(app_state.canvas.prev_brush_rect, brush_rect, app_state.color_picker.colors[app_state.color_picker.active_color].pixel);
 
     app_state.canvas.prev_brush_rect = brush_rect;
 }
@@ -242,11 +252,32 @@ void app_handle_cursor_event(InputEvent event_x, InputEvent event_y) {
     app_state.cursor.x_pos = event_x.value * app_state.screen.width / 0x7fff;
     app_state.cursor.y_pos = event_y.value * app_state.screen.height / 0x7fff;
 
-    app_canvas_handle_cursor_event();
+    if (is_inside_rectangle(app_state.cursor.x_pos, app_state.cursor.y_pos, &app_state.canvas.rect)) {
+        app_canvas_handle_cursor_event();
+    }
+}
+
+void app_color_picker_handle_click_event() {
+    int i;
+
+    if (!app_state.cursor.clicking) {
+        return;
+    }
+
+    for (i = 0; i < NUM_COLORS; i++) {
+        if (is_inside_rectangle(app_state.cursor.x_pos, app_state.cursor.y_pos, &app_state.color_picker.colors[i].rect)) {
+            app_state.color_picker.active_color = i;
+            return;
+        }
+    }
 }
 
 void app_handle_click_event(InputEvent event) {
     app_state.cursor.clicking = event.value;
+
+    if (is_inside_rectangle(app_state.cursor.x_pos, app_state.cursor.y_pos, &app_state.color_picker.rect)) {
+        app_color_picker_handle_click_event();
+    }
 }
 
 int app_handle_event(InputEvent event, InputEvent handle_event_buffer[], int n) {
