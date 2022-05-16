@@ -8,23 +8,47 @@
 #define BRUSH_SIZE 10
 
 #define EVENT_BUF_SIZE  512
-#define RECT_BUF_SIZE   256
 
 
-int init_screen(VirtioGpuRectangle* screen_rect) {
+typedef struct AppState {
+    struct {
+        uint32_t x_pos;
+        uint32_t y_pos;
+        int8_t clicking;
+    } cursor;
+
+    struct {
+        uint32_t width;
+        uint32_t height;
+    } screen;
+
+    struct {
+        VirtioGpuRectangle prev_rect;
+    } canvas;
+} State;
+
+
+State app_state;
+
+
+int init_screen() {
+    VirtioGpuRectangle screen_rect;
     int rv;
 
-    rv = gpu_get_display_info(SCANOUT_ID, screen_rect);
+    rv = gpu_get_display_info(SCANOUT_ID, &screen_rect);
     if (rv != 0) {
         return rv;
     }
 
-    rv = gpu_fill(SCANOUT_ID, screen_rect, &((VirtioGpuPixel) {255, 255, 255, 255}));
+    app_state.screen.width = screen_rect.width;
+    app_state.screen.height = screen_rect.height;
+
+    rv = gpu_fill(SCANOUT_ID, &screen_rect, &((VirtioGpuPixel) {255, 255, 255, 255}));
     if (rv != 0) {
         return rv;
     }
 
-    rv = gpu_flush(SCANOUT_ID, screen_rect);
+    rv = gpu_flush(SCANOUT_ID, &screen_rect);
     if (rv != 0) {
         return rv;
     }
@@ -32,101 +56,34 @@ int init_screen(VirtioGpuRectangle* screen_rect) {
     return 0;
 }
 
-unsigned int events_to_rects(InputEvent events[], VirtioGpuRectangle rects[], VirtioGpuRectangle screen_rect, unsigned int num_events, unsigned int max_rects) {
-    unsigned int num_rects;
-    InputEvent event_x;
-    InputEvent event_y;
-    unsigned int x, y;
-    int x1, y1;
-    unsigned int x2, y2;
-    unsigned int i;
-
-    if (max_rects == 0 || num_events == 0) {
-        return 0;
-    }
-
-    num_rects = 0;
-
-    for (i = 0; i < num_events - 1; i++) {
-        event_x = events[i];
-        event_y = events[i+1];
-
-        if (
-            event_x.type == EV_ABS && event_x.code == ABS_X &&
-            event_y.type == EV_ABS && event_y.code == ABS_Y
-        ) {
-            x = event_x.value * screen_rect.width / 0x7fff;
-            y = event_y.value * screen_rect.height / 0x7fff;
-
-            x1 = x - BRUSH_SIZE / 2;
-            x2 = x + BRUSH_SIZE / 2;
-            y1 = y - BRUSH_SIZE / 2;
-            y2 = y + BRUSH_SIZE / 2;
-
-            if (x1 < 0) {
-                x1 = 0;
-                x2 = BRUSH_SIZE;
-            }
-
-            if (x2 >= screen_rect.width) {
-                x2 = screen_rect.width - 1;
-                x1 = x2 - BRUSH_SIZE;
-            }
-
-            if (y1 < 0) {
-                y1 = 0;
-                y2 = BRUSH_SIZE;
-            }
-
-            if (y2 >= screen_rect.height) {
-                y2 = screen_rect.height - 1;
-                y1 = y2 - BRUSH_SIZE;
-            }
-
-            rects[num_rects] = (VirtioGpuRectangle) {
-                x1, y1,
-                x2 - x1,
-                y2 - y1
-            };
-
-            num_rects++;
-            if (num_rects == max_rects) {
-                return num_rects;
-            }
-        }
-    }
-
-    return num_rects;
-}
-
-void draw_line(VirtioGpuRectangle* from_rect, VirtioGpuRectangle* to_rect, VirtioGpuPixel* pixel) {
+void draw_line(VirtioGpuRectangle from_rect, VirtioGpuRectangle to_rect, VirtioGpuPixel pixel) {
     VirtioGpuRectangle flush_rect;
     int rise;
     int run;
     int abs_rise;
     int abs_run;
 
-    if (from_rect->x < to_rect->x) {
-        flush_rect.x = from_rect->x;
-        flush_rect.width = to_rect->x - from_rect->x + to_rect->width;
+    if (from_rect.x < to_rect.x) {
+        flush_rect.x = from_rect.x;
+        flush_rect.width = to_rect.x - from_rect.x + to_rect.width;
     } else {
-        flush_rect.x = to_rect->x;
-        flush_rect.width = from_rect->x - to_rect->x + from_rect->width;
+        flush_rect.x = to_rect.x;
+        flush_rect.width = from_rect.x - to_rect.x + from_rect.width;
     }
 
-    if (from_rect->y < to_rect->y) {
-        flush_rect.y = from_rect->y;
-        flush_rect.height = to_rect->y - from_rect->y + to_rect->height;
+    if (from_rect.y < to_rect.y) {
+        flush_rect.y = from_rect.y;
+        flush_rect.height = to_rect.y - from_rect.y + to_rect.height;
     } else {
-        flush_rect.y = to_rect->y;
-        flush_rect.height = from_rect->y - to_rect->y + from_rect->height;
+        flush_rect.y = to_rect.y;
+        flush_rect.height = from_rect.y - to_rect.y + from_rect.height;
     }
 
-    while (from_rect->x != to_rect->x || from_rect->y != to_rect->y) {
-        gpu_fill(SCANOUT_ID, from_rect, pixel);
+    while (from_rect.x != to_rect.x || from_rect.y != to_rect.y) {
+        gpu_fill(SCANOUT_ID, &from_rect, &pixel);
 
-        rise = to_rect->y - from_rect->y;
-        run = to_rect->x - from_rect->x;
+        rise = to_rect.y - from_rect.y;
+        run = to_rect.x - from_rect.x;
 
         abs_rise = rise;
         if (rise < 0) {
@@ -160,59 +117,143 @@ void draw_line(VirtioGpuRectangle* from_rect, VirtioGpuRectangle* to_rect, Virti
             run = run / abs_run * (BRUSH_SIZE - 1);
         }
 
-        from_rect->y += rise;
-        from_rect->x += run;
+        from_rect.y += rise;
+        from_rect.x += run;
     }
 
-    gpu_fill(SCANOUT_ID, to_rect, pixel);
+    gpu_fill(SCANOUT_ID, &to_rect, &pixel);
     gpu_flush(SCANOUT_ID, &flush_rect);
 }
 
-void app_loop(VirtioGpuRectangle screen_rect) {
+int is_inside_rectangle(uint32_t x, uint32_t y, VirtioGpuRectangle* rect) {
+    return (
+        x >= rect->x &&
+        x < rect->x + rect->width &&
+        y >= rect->y &&
+        y < rect->y + rect->height
+    );
+}
+
+VirtioGpuRectangle get_brush_rect_from_pos() {
+    int x, y;
+    int x1, y1;
+    int x2, y2;
+    
+    x = app_state.cursor.x_pos;
+    y = app_state.cursor.y_pos;
+
+    x1 = x - BRUSH_SIZE / 2;
+    x2 = x + BRUSH_SIZE / 2;
+    y1 = y - BRUSH_SIZE / 2;
+    y2 = y + BRUSH_SIZE / 2;
+
+    if (x1 < 0) {
+        x1 = 0;
+        x2 = BRUSH_SIZE;
+    }
+
+    if ((uint32_t) x2 >= app_state.screen.width) {
+        x2 = app_state.screen.width - 1;
+        x1 = x2 - BRUSH_SIZE;
+    }
+
+    if (y1 < 0) {
+        y1 = 0;
+        y2 = BRUSH_SIZE;
+    }
+
+    if ((uint32_t) y2 >= app_state.screen.height) {
+        y2 = app_state.screen.height - 1;
+        y1 = y2 - BRUSH_SIZE;
+    }
+
+    return (VirtioGpuRectangle) {
+        x1, y1,
+        x2 - x1,
+        y2 - y1
+    };
+}
+
+void app_canvas_handle_cursor_event() {
+    VirtioGpuRectangle brush_rect;
+
+    if (!app_state.cursor.clicking) {
+        app_state.canvas.prev_rect = (VirtioGpuRectangle) {
+            -1U, -1U, -1U, -1U
+        };
+
+        return;
+    }
+
+    brush_rect = get_brush_rect_from_pos();
+
+    if (
+        app_state.canvas.prev_rect.x == -1U &&
+        app_state.canvas.prev_rect.y == -1U &&
+        app_state.canvas.prev_rect.width == -1U &&
+        app_state.canvas.prev_rect.height == -1U
+    ) {
+        app_state.canvas.prev_rect = brush_rect;
+    }
+
+    draw_line(app_state.canvas.prev_rect, brush_rect, (VirtioGpuPixel) {255, 0, 0, 255});
+
+    app_state.canvas.prev_rect = brush_rect;
+}
+
+void app_handle_cursor_event(InputEvent event_x, InputEvent event_y) {
+    app_state.cursor.x_pos = event_x.value * app_state.screen.width / 0x7fff;
+    app_state.cursor.y_pos = event_y.value * app_state.screen.height / 0x7fff;
+
+    app_canvas_handle_cursor_event();
+}
+
+void app_handle_click_event(InputEvent event) {
+    app_state.cursor.clicking = event.value;
+}
+
+int app_handle_event(InputEvent event, InputEvent handle_event_buffer[], int n) {
+    if (n == 0 && event.type == EV_ABS && event.code == ABS_X) {
+        handle_event_buffer[n] = event;
+        return 1;
+    }
+
+    if (n == 1 && event.type == EV_ABS && event.code == ABS_Y) {
+        app_handle_cursor_event(handle_event_buffer[0], event);
+    } else if (n == 0 && event.type == EV_KEY && event.code == BTN_LEFT) {
+        app_handle_click_event(event);
+    }
+
+    return 0;
+}
+
+void app_loop() {
     InputEvent event_buffer[EVENT_BUF_SIZE];
-    VirtioGpuRectangle rect_buffer[RECT_BUF_SIZE];
-    VirtioGpuRectangle prev_rect;
+    InputEvent handle_event_buffer[1];
     unsigned int num_events;
-    unsigned int num_rects;
+    int n;
     unsigned int i;
 
-    prev_rect = (VirtioGpuRectangle) {
-        -1U, -1U, -1U, -1U
-    };
-
+    n = 0;
     while (1) {
         num_events = get_events(event_buffer, EVENT_BUF_SIZE);
-        num_rects = events_to_rects(event_buffer, rect_buffer, screen_rect, num_events, RECT_BUF_SIZE);
 
-        for (i = 0; i < num_rects; i++) {
-            if (
-                prev_rect.x == -1U &&
-                prev_rect.y == -1U &&
-                prev_rect.width == -1U &&
-                prev_rect.height == -1U
-            ) {
-                printf("paint: app_loop: no prev rect found\n");
-                prev_rect = rect_buffer[i];
-            }
-            
-            draw_line(&prev_rect, rect_buffer + i, &((VirtioGpuPixel) {255, 0, 0, 255}));
-
-            prev_rect = rect_buffer[i];
+        for (i = 0; i < num_events; i++) {
+            n = app_handle_event(event_buffer[i], handle_event_buffer, n);
         }
     }
 }
 
 int main() {
-    VirtioGpuRectangle screen_rect;
     int rv;
 
-    rv = init_screen(&screen_rect);
+    rv = init_screen();
     if (rv != 0) {
         printf("paint: failed to init screen\n");
         return rv;
     }
 
-    app_loop(screen_rect);
+    app_loop();
 
     return 0;
 }
