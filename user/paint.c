@@ -17,7 +17,8 @@ typedef struct AppState {
     struct {
         uint32_t x_pos;
         uint32_t y_pos;
-        int8_t clicking;
+        int8_t left_clicking;
+        int8_t right_clicking;
     } cursor;
 
     struct {
@@ -181,7 +182,7 @@ int is_inside_rectangle(uint32_t x, uint32_t y, VirtioGpuRectangle* rect) {
     );
 }
 
-VirtioGpuRectangle get_brush_rect_from_pos() {
+VirtioGpuRectangle get_brush_rect_from_pos(uint32_t brush_size) {
     int x, y;
     int x1, y1;
     int x2, y2;
@@ -189,29 +190,29 @@ VirtioGpuRectangle get_brush_rect_from_pos() {
     x = app_state.cursor.x_pos;
     y = app_state.cursor.y_pos;
 
-    x1 = x - BRUSH_SIZE / 2;
-    x2 = x + BRUSH_SIZE / 2;
-    y1 = y - BRUSH_SIZE / 2;
-    y2 = y + BRUSH_SIZE / 2;
+    x1 = x - brush_size / 2;
+    x2 = x + brush_size / 2;
+    y1 = y - brush_size / 2;
+    y2 = y + brush_size / 2;
 
     if (x1 < (int) app_state.canvas.rect.x) {
         x1 = app_state.canvas.rect.x;
-        x2 = x1 + BRUSH_SIZE;
+        x2 = x1 + brush_size;
     }
 
     if (x2 >= (int) app_state.canvas.rect.width) {
         x2 = app_state.screen.width - 1;
-        x1 = x2 - BRUSH_SIZE;
+        x1 = x2 - brush_size;
     }
 
     if (y1 < (int) app_state.canvas.rect.y) {
         y1 = app_state.canvas.rect.y;
-        y2 = y1 + BRUSH_SIZE;
+        y2 = y1 + brush_size;
     }
 
     if (y2 >= (int) app_state.canvas.rect.height) {
         y2 = app_state.screen.height - 1;
-        y1 = y2 - BRUSH_SIZE;
+        y1 = y2 - brush_size;
     }
 
     return (VirtioGpuRectangle) {
@@ -223,16 +224,25 @@ VirtioGpuRectangle get_brush_rect_from_pos() {
 
 void app_canvas_handle_cursor_event() {
     VirtioGpuRectangle brush_rect;
+    VirtioGpuPixel pixel;
 
-    if (!app_state.cursor.clicking) {
+    if (!app_state.cursor.left_clicking) {
         app_state.canvas.prev_brush_rect = (VirtioGpuRectangle) {
             -1U, -1U, -1U, -1U
         };
 
-        return;
+        if (!app_state.cursor.right_clicking) {
+            return;
+        }
     }
 
-    brush_rect = get_brush_rect_from_pos();
+    if (app_state.cursor.left_clicking) {
+        brush_rect = get_brush_rect_from_pos(BRUSH_SIZE);
+        pixel = app_state.color_picker.colors[app_state.color_picker.active_color].pixel;
+    } else {
+        brush_rect = get_brush_rect_from_pos(BRUSH_SIZE * 5);
+        pixel = (VirtioGpuPixel) {255, 255, 255, 255};
+    }
 
     if (
         app_state.canvas.prev_brush_rect.x == -1U &&
@@ -243,7 +253,7 @@ void app_canvas_handle_cursor_event() {
         app_state.canvas.prev_brush_rect = brush_rect;
     }
 
-    draw_line(app_state.canvas.prev_brush_rect, brush_rect, app_state.color_picker.colors[app_state.color_picker.active_color].pixel);
+    draw_line(app_state.canvas.prev_brush_rect, brush_rect, pixel);
 
     app_state.canvas.prev_brush_rect = brush_rect;
 }
@@ -260,7 +270,7 @@ void app_handle_cursor_event(InputEvent event_x, InputEvent event_y) {
 void app_color_picker_handle_click_event() {
     int i;
 
-    if (!app_state.cursor.clicking) {
+    if (!app_state.cursor.left_clicking) {
         return;
     }
 
@@ -273,9 +283,16 @@ void app_color_picker_handle_click_event() {
 }
 
 void app_handle_click_event(InputEvent event) {
-    app_state.cursor.clicking = event.value;
+    if (event.code == BTN_LEFT) {
+        app_state.cursor.left_clicking = event.value;
+    } else {
+        app_state.cursor.right_clicking = event.value;
+    }
 
-    if (is_inside_rectangle(app_state.cursor.x_pos, app_state.cursor.y_pos, &app_state.color_picker.rect)) {
+    if (
+        event.code == BTN_LEFT &&
+        is_inside_rectangle(app_state.cursor.x_pos, app_state.cursor.y_pos, &app_state.color_picker.rect)
+    ) {
         app_color_picker_handle_click_event();
     }
 }
@@ -288,7 +305,7 @@ int app_handle_event(InputEvent event, InputEvent handle_event_buffer[], int n) 
 
     if (n == 1 && event.type == EV_ABS && event.code == ABS_Y) {
         app_handle_cursor_event(handle_event_buffer[0], event);
-    } else if (n == 0 && event.type == EV_KEY && event.code == BTN_LEFT) {
+    } else if (n == 0 && event.type == EV_KEY && (event.code == BTN_LEFT || event.code == BTN_RIGHT)) {
         app_handle_click_event(event);
     }
 
