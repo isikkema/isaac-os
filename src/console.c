@@ -158,22 +158,18 @@ int handle_command(ConsoleBuffer* cb) {
         print_hart_status();
     } else if (strcmp("poweroff", args[0]) == 0) {
         poweroff();
-    } else if (strcmp("start", args[0]) == 0) {
-        start_hart(argc, args);
     } else if (strcmp("print", args[0]) == 0) {
         cmd_print(argc, args);
     } else if (strcmp("args", args[0]) == 0) {
         print_args(argc, args);
-    } else if (strcmp("test", args[0]) == 0) {
-        test(argc, args);
     } else if (strcmp("random", args[0]) == 0) {
         random(argc, args);
     } else if (strcmp("read", args[0]) == 0) {
         read(argc, args);
-    } else if (strcmp("write", args[0]) == 0) {
-        write(argc, args);
     } else if (strcmp("gpu", args[0]) == 0) {
         gpu(argc, args);
+    } else if (strcmp("exec", args[0]) == 0) {
+        exec(argc, args);
     } else {
         printf("Unknown command: %s\n", args[0]);
     }
@@ -230,64 +226,6 @@ void poweroff() {
     sbi_poweroff();
 }
 
-void start_hart(int argc, char** args) {
-
-    printf("start_hart is deprecated\n");
-    
-    // int hart;
-    // Process* process;
-
-    // if (argc < 2) {
-    //     printf("start: not enough arguments\n");
-    //     return;
-    // }
-
-    // hart = atoi(args[1]);
-    // // if (hart == 0) {
-    // //     printf("start: invalid argument: %s\n", args[1]);
-    // //     return;
-    // // }
-
-    // process = process_new();
-    
-    // if (!process_load_elf((void*) 0x0, process)) {
-    //     printf("start: process_load_elf failed\n");
-    //     process_free(process);
-    //     return;
-    // }
-
-    // if (!process_prepare(process)) {
-    //     printf("start: process_prepare failed\n");
-    //     process_free(process);
-    //     return;
-    // }
-
-    // printf("\nBefore running process: [");
-    // char* ptr = process->rcb.stack_pages->head->data;
-    // for (u32 i = 4050; i < 4096; i++) {
-    //     printf("%c", ptr[i]);
-    // }
-    // printf("]\n\n");
-
-    // sbi_add_timer(hart, 10000000UL * 5);
-
-    // if (!sbi_hart_start(hart, process_spawn_addr, mmu_translate(kernel_mmu_table, (u64) &process->frame))) {
-    //     printf("start: sbi_hart_start failed\n");
-    // }
-
-    // printf("\nPress any key to continue...\n\n");
-    // WFI();
-
-    // printf("\nAfter running process: [");
-    // for (u32 i = 4050; i < 4096; i++) {
-    //     printf("%c", ptr[i]);
-    // }
-
-    // printf("]\n\n");
-
-    // process_free(process);
-}
-
 void print_args(int argc, char** args) {
     int i;
 
@@ -321,31 +259,6 @@ void cmd_print(int argc, char** args) {
     } else {
         printf("print: invalid argument: %s\n", args[1]);
     }
-}
-
-void test(int argc, char** args) {
-    Process* p;
-
-    p = process_new();
-    p->supervisor_mode = false;
-    p->state = PS_RUNNING;
-    
-    if (!process_load_elf(p, "/user/paint.elf")) {
-        printf("test: process_load_elf failed\n");
-
-        process_free(p);
-        return;
-    }
-
-    if (!process_prepare(p)) {
-        printf("test: process_prepare failed\n");
-
-        process_free(p);
-        return;
-    }
-
-    schedule_add(p);
-    return;
 }
 
 void random(int argc, char** args) {
@@ -420,29 +333,6 @@ void read(int argc, char** args) {
     kfree(data);
 }
 
-void write(int argc, char** args) {
-    // void* addr;
-    // u32 size;
-    // u8* data;
-
-    // if (argc < 3) {
-    //     printf("usage: write <address> <string>\n");
-    //     return;
-    // }
-
-    // addr = (void*) atol(args[1]);
-    // size = strlen(args[2]);
-
-    // data = (u8*) args[2];
-
-    // if (!block_write_poll(virtio_block_devices->head->data, addr, data, size)) {
-    //     printf("block_write failed\n");
-    //     return;
-    // }
-
-    printf("write: write is deprecated\n");
-}
-
 void gpu(int argc, char** args) {
     u32 x;
     u32 y;
@@ -493,4 +383,34 @@ void gpu(int argc, char** args) {
         printf("usage: gpu size|draw\n");
         return;
     }
+}
+
+void exec(int argc, char** args) {
+    Process* p;
+
+    if (argc != 2) {
+        printf("Usage: exec path/to/elf\n");
+        return;
+    }
+
+    p = process_new();
+    p->supervisor_mode = false;
+    p->state = PS_RUNNING;
+    
+    if (!process_load_elf(p, args[1])) {
+        printf("test: process_load_elf failed\n");
+
+        process_free(p);
+        return;
+    }
+
+    if (!process_prepare(p)) {
+        printf("test: process_prepare failed\n");
+
+        process_free(p);
+        return;
+    }
+
+    schedule_add(p);
+    return;
 }

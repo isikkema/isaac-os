@@ -28,3 +28,4 @@ void random(int argc, char** args);
 void read(int argc, char** args);
 void write(int argc, char** args);
 void gpu(int argc, char** args);
+void exec(int argc, char** args);
