@@ -114,7 +114,7 @@ bool block_request(VirtioDevice* block_device, uint16_t type, void* dst, void* s
         low_sector = (u64) src / cfg->blk_size;
         high_sector = ((u64) src + size + cfg->blk_size - 1) / cfg->blk_size;
         aligned_size = (high_sector - low_sector) * cfg->blk_size;
-    } else if (type == VIRTIO_BLK_T_OUT) {
+    } else { // if (type == VIRTIO_BLK_T_OUT)
         low_sector = (u64) dst / cfg->blk_size;
         high_sector = ((u64) dst + size + cfg->blk_size - 1) / cfg->blk_size;
         aligned_size = (high_sector - low_sector) * cfg->blk_size;
@@ -124,6 +124,9 @@ bool block_request(VirtioDevice* block_device, uint16_t type, void* dst, void* s
     desc_header = kzalloc(sizeof(VirtioBlockDescHeader));
     desc_header->type = type;
     desc_header->sector = low_sector;
+
+    data = NULL;
+    desc_data = NULL;
 
     // If read or write
     if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
@@ -224,11 +227,13 @@ bool block_request(VirtioDevice* block_device, uint16_t type, void* dst, void* s
     }
 
     if (poll) {
-        while (!request_info->complete) {
-            // WFI();
-        }
+        if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_OUT) {
+            while (!request_info->complete) {
+                // WFI();
+            }
 
-        kfree((void*) request_info);
+            kfree((void*) request_info);
+        }
     }
 
     return true;

@@ -94,6 +94,7 @@ bool list_remove(List* list, void* data) {
         return true;
     }
 
+    prev = list->head;
     for (it = list->head; it != NULL; it = it->next) {
         if (it->data == data) {
             prev->next = it->next;
